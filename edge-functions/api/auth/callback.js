@@ -54,12 +54,26 @@ export async function onRequestGet({ request, env }) {
   }
 
   // Signature/issuer/audience already verified internally by
-  // authorizationCodeGrant. This is the ONLY read of the tenant claim.
+  // authorizationCodeGrant. This is the ONLY read of the tenant claim —
+  // never from request.url, URL.searchParams, headers, or the request
+  // body (AUTH-03).
   const claims = tokens.claims();
   const tenantId = claims?.tenant_id;
 
+  if (typeof tenantId !== 'string' || tenantId.length === 0) {
+    // Server-side-only diagnostic for Wave 0 IdP setup debugging
+    // (RESEARCH.md Pitfall 3). Never included in the HTTP response —
+    // the client only ever sees the generic 302 to /access-denied.html
+    // below, identical to every other failure branch in this file (D-05).
+    console.log(
+      'auth callback: missing/invalid tenant_id claim. Expected key: tenant_id. Present claim keys:',
+      claims ? Object.keys(claims) : [],
+    );
+    return redirectToAccessDenied();
+  }
+
   const sessionJwt = await signSession(
-    { tenantId, sub: claims?.sub },
+    { tenantId, sub: claims.sub },
     env,
   );
 
