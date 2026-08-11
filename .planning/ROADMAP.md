@@ -41,7 +41,10 @@ Plans:
   1. Visiting the live app redirects an unauthenticated user to their company's SSO identity provider, and completing authentication there returns them to the app in a logged-in state.
   2. A logged-in user's session persists across a browser refresh without requiring re-login.
   3. The user's SSO identity is resolved server-side to exactly one EdgeOne account; this mapping cannot be changed or influenced by any client-supplied request parameter.
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 02-01-PLAN.md — OIDC login/callback tracer: PKCE+nonce auth flow, JWT session issuance, server-side tenant claim resolution, generic access-denied page (AUTH-01, AUTH-03)
+- [ ] 02-02-PLAN.md — Session-aware /api/status + login-state UI, live end-to-end verification against a real test IdP (AUTH-02, AUTH-03 re-verification)
 
 ### Phase 3: Tenant-Scoped Data Source Selection
 **Goal**: A logged-in user can select a data source (CDN traffic or security events) on a dedicated selection screen, and the app only ever surfaces or queries data belonging to that user's own resolved EdgeOne account.
@@ -75,6 +78,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. EdgeOne Deployment Foundation | 2/2 | Complete | 2026-08-11 |
-| 2. SSO Authentication & Tenant Mapping | 0/TBD | Not started | - |
+| 2. SSO Authentication & Tenant Mapping | 0/2 | Planned | - |
 | 3. Tenant-Scoped Data Source Selection | 0/TBD | Not started | - |
 | 4. Prompt-Driven Dashboard Generation & Save | 0/TBD | Not started | - |
