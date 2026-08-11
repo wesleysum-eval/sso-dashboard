@@ -1,0 +1,11 @@
+{
+  "routes": [
+    {
+      "src": "^/api/status$",
+      "methods": [
+        "GET"
+      ]
+    }
+  ],
+  "middleware": null
+}
