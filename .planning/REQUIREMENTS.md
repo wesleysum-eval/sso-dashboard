@@ -5,6 +5,10 @@
 
 ## v1 Requirements
 
+### Deployment
+
+- [ ] **DEPLOY-01**: App is deployed and live on EdgeOne Pages (frontend) + EdgeOne Functions (backend/API glue), with persistent storage and secrets/config working end-to-end in the deployed environment (not just local dev)
+
 ### Authentication
 
 - [ ] **AUTH-01**: User can log in via their company's enterprise SSO (protocol — OIDC vs SAML — decided at phase-planning time)
@@ -67,23 +71,24 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | TBD | Pending |
-| AUTH-02 | TBD | Pending |
-| AUTH-03 | TBD | Pending |
-| DATA-01 | TBD | Pending |
-| DATA-02 | TBD | Pending |
-| DATA-03 | TBD | Pending |
-| GEN-01 | TBD | Pending |
-| GEN-02 | TBD | Pending |
-| GEN-03 | TBD | Pending |
-| GEN-04 | TBD | Pending |
-| SAVE-01 | TBD | Pending |
+| DEPLOY-01 | Phase 1 | Pending |
+| AUTH-01 | Phase 2 | Pending |
+| AUTH-02 | Phase 2 | Pending |
+| AUTH-03 | Phase 2 | Pending |
+| DATA-01 | Phase 3 | Pending |
+| DATA-02 | Phase 3 | Pending |
+| DATA-03 | Phase 3 | Pending |
+| GEN-01 | Phase 4 | Pending |
+| GEN-02 | Phase 4 | Pending |
+| GEN-03 | Phase 4 | Pending |
+| GEN-04 | Phase 4 | Pending |
+| SAVE-01 | Phase 4 | Pending |
 
 **Coverage:**
-- v1 requirements: 11 total
-- Mapped to phases: 0 (pending roadmap creation)
-- Unmapped: 11 ⚠️ (expected — roadmap not yet created)
+- v1 requirements: 12 total
+- Mapped to phases: 12/12 ✓
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-08-10*
-*Last updated: 2026-08-10 after initial definition*
+*Last updated: 2026-08-10 after roadmap creation (added DEPLOY-01, mapped all v1 requirements to phases)*
