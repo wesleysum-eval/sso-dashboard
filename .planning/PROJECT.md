@@ -55,7 +55,7 @@ Enterprise customers can self-serve custom reporting on their own EdgeOne data (
 | SSO protocol (OIDC vs SAML) deferred to research | Both are viable; wanted domain research before locking implementation | — Pending |
 | SSO as access gate + per-customer data isolation (not deep in-tool RBAC) | Matches v1 scope — the main risk is cross-tenant leakage, not intra-org permission granularity | — Pending |
 | v1 data sources limited to CDN traffic + security events | Narrows scope for a sellable MVP rather than a generic builder | — Pending |
-| Deploy on EdgeOne Pages + Functions | Keeps the whole app within the EdgeOne edge ecosystem, showcases the platform | — Pending |
+| Deploy on EdgeOne Pages + Functions | Keeps the whole app within the EdgeOne edge ecosystem, showcases the platform | ✓ Good — live, static hosting + Edge Functions + secrets + KV all proven end-to-end in Phase 1 |
 
 ## Evolution
 

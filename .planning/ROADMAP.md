@@ -12,7 +12,7 @@ The journey starts with proving the hardest platform constraint first: getting a
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: EdgeOne Deployment Foundation** - Get a real app skeleton live on EdgeOne Pages + EdgeOne Functions, with storage and secrets proven end-to-end, before any feature work begins.
+- [x] **Phase 1: EdgeOne Deployment Foundation** - Get a real app skeleton live on EdgeOne Pages + EdgeOne Functions, with storage and secrets proven end-to-end, before any feature work begins.
 - [ ] **Phase 2: SSO Authentication & Tenant Mapping** - Enterprise users log in via their company's SSO on the live deployment and are resolved server-side to exactly one EdgeOne account.
 - [ ] **Phase 3: Tenant-Scoped Data Source Selection** - Logged-in users pick CDN Traffic Stats or Security Events, with every query provably scoped to their own account only.
 - [ ] **Phase 4: Prompt-Driven Dashboard Generation & Save** - Users prompt an agent to generate a constrained, read-only dashboard from their selected data source, refine it, and save it — verified live on EdgeOne.
@@ -30,8 +30,8 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. A persistent storage binding (e.g., EdgeOne KV) is provisioned, and a value written in one request can be read back in a later request against the live deployment.
 **Plans:** 2 plans
 Plans:
-- [ ] 01-01-PLAN.md — Static site + Edge Function + secrets live on EdgeOne Makers (CLI deploy, criteria 1-3)
-- [ ] 01-02-PLAN.md — KV namespace bound + write-then-read proven live (criterion 4)
+- [x] 01-01-PLAN.md — Static site + Edge Function + secrets live on EdgeOne Makers (CLI deploy, criteria 1-3)
+- [x] 01-02-PLAN.md — KV namespace bound + write-then-read proven live (criterion 4)
 
 ### Phase 2: SSO Authentication & Tenant Mapping
 **Goal**: Enterprise users can log in through their company's SSO on the live deployed app and be resolved, server-side, to exactly one EdgeOne account, with sessions that persist across refresh.
@@ -74,7 +74,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. EdgeOne Deployment Foundation | 0/2 | Not started | - |
+| 1. EdgeOne Deployment Foundation | 2/2 | Complete | 2026-08-11 |
 | 2. SSO Authentication & Tenant Mapping | 0/TBD | Not started | - |
 | 3. Tenant-Scoped Data Source Selection | 0/TBD | Not started | - |
 | 4. Prompt-Driven Dashboard Generation & Save | 0/TBD | Not started | - |

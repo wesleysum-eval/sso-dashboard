@@ -7,7 +7,7 @@
 
 ### Deployment
 
-- [ ] **DEPLOY-01**: App is deployed and live on EdgeOne Pages (frontend) + EdgeOne Functions (backend/API glue), with persistent storage and secrets/config working end-to-end in the deployed environment (not just local dev)
+- [x] **DEPLOY-01**: App is deployed and live on EdgeOne Pages (frontend) + EdgeOne Functions (backend/API glue), with persistent storage and secrets/config working end-to-end in the deployed environment (not just local dev)
 
 ### Authentication
 
@@ -71,7 +71,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DEPLOY-01 | Phase 1 | Pending |
+| DEPLOY-01 | Phase 1 | Complete |
 | AUTH-01 | Phase 2 | Pending |
 | AUTH-02 | Phase 2 | Pending |
 | AUTH-03 | Phase 2 | Pending |

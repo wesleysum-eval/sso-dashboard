@@ -141,6 +141,9 @@ None — no code-level auto-fixes were needed.
 - **Carried-forward blocker:** Phase 2 (and later phases) will set real secrets (OIDC client credentials). Whoever plans Phase 2 must first resolve which Makers project identity is authoritative and confirm secret-setting works against it, or this same gap recurs at higher stakes.
 - Phase 1 Plan 02 (KV persistence) can proceed — it's a separate concern (console-only KV binding) and not blocked by the D3 gap.
 
+## Update (2026-08-11, during Plan 01-02)
+**D3 gap resolved.** The user set the placeholder env var directly in the console on the GitHub-connected project, then redeployed. `curl https://sso-dashboard-0eso53cx.edgeone.dev/api/status` now returns `{"hasConfig":true,"kvBound":true,...}` — criterion 3 (secret readable on the canonical deployment) is now verified pass. See `01-02-SUMMARY.md` coverage entry `D3-followup` for the verification record. No further action needed on this blocker.
+
 ---
 *Phase: 01-edgeone-deployment-foundation*
 *Completed: 2026-08-11*
