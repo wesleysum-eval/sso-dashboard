@@ -2,3 +2,6 @@
 .env
 .edgeone/*
 .tef_dist/*
+
+# Node
+node_modules/
