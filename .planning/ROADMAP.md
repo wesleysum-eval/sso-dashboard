@@ -28,7 +28,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. At least one EdgeOne Function endpoint is deployed and callable from the live site, returning a real (not mocked) response.
   3. Environment secrets/config (e.g., placeholder OIDC client credentials) can be set and read by an EdgeOne Function in the deployed environment.
   4. A persistent storage binding (e.g., EdgeOne KV) is provisioned, and a value written in one request can be read back in a later request against the live deployment.
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 01-01-PLAN.md — Static site + Edge Function + secrets live on EdgeOne Makers (CLI deploy, criteria 1-3)
+- [ ] 01-02-PLAN.md — KV namespace bound + write-then-read proven live (criterion 4)
 
 ### Phase 2: SSO Authentication & Tenant Mapping
 **Goal**: Enterprise users can log in through their company's SSO on the live deployed app and be resolved, server-side, to exactly one EdgeOne account, with sessions that persist across refresh.
@@ -71,7 +74,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. EdgeOne Deployment Foundation | 0/TBD | Not started | - |
+| 1. EdgeOne Deployment Foundation | 0/2 | Not started | - |
 | 2. SSO Authentication & Tenant Mapping | 0/TBD | Not started | - |
 | 3. Tenant-Scoped Data Source Selection | 0/TBD | Not started | - |
 | 4. Prompt-Driven Dashboard Generation & Save | 0/TBD | Not started | - |
