@@ -30,7 +30,17 @@ export async function onRequestGet({ request, env }) {
 
   const cookies = new Cookies(request.headers.get('Cookie'));
   const txnCookie = cookies.get('oidc_txn');
-  if (!txnCookie) return redirectToAccessDenied();
+  if (!txnCookie) {
+    // Server-side-only diagnostic (never in the HTTP response, D-05) — the
+    // oidc_txn cookie is missing entirely. Common causes: the browser
+    // dropped it during a multi-hop SSO chain (SameSite=Lax should survive
+    // a top-level redirect, but an intermediate IdP hop that lands via
+    // fetch/iframe rather than a full top-level navigation can lose it),
+    // the 600s max-age expired, or the user opened /api/auth/callback in a
+    // different browser context than /api/auth/login was started in.
+    console.log('auth callback: no oidc_txn cookie present on callback request');
+    return redirectToAccessDenied();
+  }
 
   let code_verifier;
   let state;
@@ -38,6 +48,7 @@ export async function onRequestGet({ request, env }) {
   try {
     ({ code_verifier, state, nonce } = JSON.parse(decodeURIComponent(txnCookie.value)));
   } catch {
+    console.log('auth callback: oidc_txn cookie present but failed to parse');
     return redirectToAccessDenied();
   }
 
@@ -48,9 +59,12 @@ export async function onRequestGet({ request, env }) {
       expectedState: state,
       expectedNonce: nonce,
     });
-  } catch {
+  } catch (err) {
     // Invalid/expired code, state mismatch, nonce mismatch, or any other
-    // exchange failure — RFC 9700 SS4.7.1.
+    // exchange failure — RFC 9700 SS4.7.1. Server-side-only diagnostic
+    // (never in the HTTP response, D-05) — error name/message only, never
+    // the raw code/state/tokens.
+    console.log('auth callback: authorizationCodeGrant failed:', err?.name, err?.message);
     return redirectToAccessDenied();
   }
 
