@@ -412,12 +412,12 @@ Signature = HexEncode(HMAC_SHA256(SecretSigning, StringToSign))
 | A2 | `teo.tencentcloudapi.com` is reachable via `fetch()` from within an EdgeOne Edge Function (outbound HTTPS to a third-party API host, not just EdgeOne's own APIs) | Architecture Patterns, Pattern 3 | **Low.** Phase 2's OIDC flow already proves outbound `fetch()` to an arbitrary external HTTPS host (the customer's IdP) works from EdgeOne Edge Functions — this is the same capability, different destination. No new platform capability is being assumed. |
 | A3 | `DescribeDDoSAttackData` (DDoS-specific metrics) is an acceptable v1 interpretation of REQUIREMENTS.md's broader "Security Events" (DATA-02) | User Constraints (Claude's Discretion) | **Low-medium** — this is a scope-interpretation decision, not a technical risk. DDoS attack data is the most concretely and completely documented security-analytics endpoint found in the `teo` Data Analysis API category this session; other security-adjacent APIs exist (e.g., Web Protection/Bot Management event logs) but were less completely documented in the sources reviewed. If the user wants WAF/bot-management events specifically instead of DDoS, this is a same-shaped swap (different `Action`/`MetricNames`) in `security-events.js`, not an architecture change. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Does the exact KV record shape (`{ zoneId, secretId, secretKey }`) match what a real onboarding process will eventually populate?**
    - What we know: D-03 explicitly defers population design to a future onboarding phase; this phase only needs *a* well-defined read contract to build against.
    - What's unclear: Whether onboarding will eventually store one shared platform-level SecretId/SecretKey pair (with per-tenant API-level scoping via IAM/CAM policies) rather than per-tenant raw credentials. Both shapes satisfy this phase's read-path contract identically (only the *population* mechanism differs, which is out of scope).
-   - Recommendation: Build against the per-tenant-credentials shape now (simplest to seed manually for live verification per the Wave 0/checkpoint task); document the KV key/value contract clearly in code comments so a future onboarding-automation phase can populate it correctly regardless of which credential-provisioning strategy is eventually chosen.
+   - RESOLVED: Build against the per-tenant-credentials shape now (simplest to seed manually for live verification per the Wave 0/checkpoint task); document the KV key/value contract clearly in code comments so a future onboarding-automation phase can populate it correctly regardless of which credential-provisioning strategy is eventually chosen.
 
 ## Environment Availability
 
