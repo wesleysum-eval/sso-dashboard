@@ -52,8 +52,9 @@ Enterprise customers can self-serve custom reporting on their own EdgeOne data (
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
 | Read-only scope for v1 | Removes write-exploit risk entirely; AI-generated code can only query/render, not mutate — much safer starting point | ✓ Good |
-| SSO protocol (OIDC vs SAML) deferred to research | Both are viable; wanted domain research before locking implementation | — Pending |
+| SSO protocol (OIDC vs SAML) deferred to research | Both are viable; wanted domain research before locking implementation | ✓ Resolved — OIDC only for v1 |
 | SSO as access gate + per-customer data isolation (not deep in-tool RBAC) | Matches v1 scope — the main risk is cross-tenant leakage, not intra-org permission granularity | — Pending |
+| Tenant claim name configurable | Auth0 and other IdPs may emit namespaced custom claims, while the app still needs one verified server-side tenant source | ✓ Good — defaults to `tenant_id`, override with `OIDC_TENANT_CLAIM` |
 | v1 data sources limited to CDN traffic + security events | Narrows scope for a sellable MVP rather than a generic builder | — Pending |
 | Deploy on EdgeOne Pages + Functions | Keeps the whole app within the EdgeOne edge ecosystem, showcases the platform | ✓ Good — live, static hosting + Edge Functions + secrets + KV all proven end-to-end in Phase 1 |
 
@@ -75,4 +76,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-10 after initialization*
+*Last updated: 2026-08-12 after live SSO callback debugging updates*

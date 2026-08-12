@@ -87,10 +87,10 @@ Accent reserved for: the disabled/placeholder "Select Data Source" CTA link on t
 | Post-login welcome body | **"You're signed in as tenant `{tenant_id}`."** — tenant ID interpolated from the verified JWT session claim (user decision: welcome + tenant ID, useful for manually verifying AUTH-03 during this phase) |
 | Empty state | Not applicable this phase — no list/collection UI exists in Phase 2 (both pages are single static content blocks, no data to be empty). |
 | Error state (access-denied heading) | **"Access Denied"** |
-| Error state (access-denied body) | **"Your account could not be verified. Contact your IT administrator."** (user decision — D-05 compliant: no tenant-mapping detail, no configured-domain hint, no reason code) |
+| Error state (access-denied body) | **"Your account could not be verified. Contact your IT administrator."** (user decision — D-05 compliant: no tenant-mapping detail, no configured-domain hint, no reason code in normal operation) |
 | Destructive confirmation | Not applicable — Phase 2 has no destructive actions (no logout, no delete; AUTH-04 explicit logout is deferred to v2 per REQUIREMENTS.md). |
 
-**Hard constraint carried from CONTEXT.md D-05:** The access-denied page must never vary its copy based on *why* mapping failed (missing claim vs. unrecognized tenant vs. malformed claim) — always the exact same two lines above, reached via the same redirect regardless of cause (see `02-RESEARCH.md` Pitfall 5).
+**Hard constraint carried from CONTEXT.md D-05:** The access-denied page must never vary its primary copy based on *why* mapping failed (missing claim vs. unrecognized tenant vs. malformed claim) — always the exact same two lines above, reached via the same redirect regardless of cause (see `02-RESEARCH.md` Pitfall 5). Temporary `AUTH_DEBUG_CALLBACK=true` diagnostics are an onboarding-only exception when EdgeOne logs are unavailable; disable the flag after live verification.
 
 ---
 

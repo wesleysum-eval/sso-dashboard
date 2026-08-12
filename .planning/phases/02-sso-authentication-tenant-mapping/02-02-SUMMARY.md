@@ -84,6 +84,7 @@ coverage:
 - Live-verified via curl: `GET /api/status` with no cookie returns `authenticated: false, tenantId: null` — confirmed against the canonical deployed URL.
 - **UI-SPEC implementation gap closed:** `02-UI-SPEC.md`'s design contract (system font stack, spacing scale, EdgeOne blue `#0052D9` accent, card layout, exact copywriting contract) had been written during Phase 2 planning but never actually built into code — `index.html`/`access-denied.html` were still Phase 1's bare unstyled HTML. First pass added a shared `styles.css`; the user then independently rebuilt the page structure (top `<nav>` with tenant badge, dedicated login screen, `.card-grid`/`.source-card` data-source picker anticipating Phase 3) as per-page inline `<style>` blocks. Reconciled by keeping the user's structure and swapping its color tokens back to the spec's EdgeOne-blue palette, restoring the spec's exact "Welcome"/access-denied copy, and removing the now-orphaned `styles.css`. Added a dedicated `#tenant-badge-value` span with `title` attribute for the spec's long-text ellipsis backstop.
 - **Diagnosed and fixed a live Auth0 configuration gap** (not a code defect): the test user was a Google social-login identity with no `user_metadata`, so the Post-Login Action's `event.user.user_metadata.tenant_id` read resolved to nothing, sending every login through the generic access-denied path even though the app's own OIDC/session code was working correctly. Fixed by updating the Action to fall back to `event.user.idp_tenant_domain` (already populated for this social-login user) — see `02-RESEARCH.md` Pitfall 6 for the documented gotcha.
+- **Added live callback troubleshooting after EdgeOne logs were unavailable:** `AUTH_DEBUG_CALLBACK=true` temporarily surfaces non-token denial reasons on `/access-denied.html`; the callback now reads the tenant from `claims[env.OIDC_TENANT_CLAIM || 'tenant_id']` so Auth0 namespaced claims can be configured without code changes. A live `authorization_code_grant_failed` showed EdgeOne rejecting `URLSearchParams` token request bodies from `openid-client`/`oauth4webapi`; fixed via an OIDC custom fetch wrapper in `edge-functions/lib/oidc-config.js`.
 
 ## Task Commits
 
@@ -111,17 +112,20 @@ None for Task 1 — executed exactly as written. The UI-SPEC implementation, Aut
 ## Issues Encountered
 - **UI-SPEC never implemented:** `02-UI-SPEC.md` was generated during Phase 2's UI-phase step but no execution task in `02-01-PLAN.md`/`02-02-PLAN.md` actually referenced building it into code — it sat as an unactioned design contract. Closed by the styles.css follow-up, then the structure rebuild.
 - **Auth0 social-login `user_metadata` gap:** see Accomplishments and `02-RESEARCH.md` Pitfall 6 for the full diagnosis. Root-caused via the user's Auth0 Raw JSON user profile (showed `idp_tenant_domain` populated but no `user_metadata` key at all).
+- **EdgeOne `URLSearchParams` fetch body gap:** live callback debug showed Auth0 login succeeded but `authorizationCodeGrant` failed because EdgeOne's fetch runtime rejected the token request body initializer. Resolved by converting OIDC `URLSearchParams` bodies to form-encoded strings in the configured fetch wrapper.
 - **Documentation/reality drift:** the user rebuilt the page structure directly in the working tree without flagging it, which was discovered only when preparing to commit documentation that referenced the (by-then-superseded) `styles.css` implementation. Resolved by confirming with the user directly and reconciling docs to the merged outcome.
 
 ## User Setup Required
 
 **Task 2 (blocking human-verify checkpoint) still requires the human to:**
 1. Confirm the Auth0 Action fix (fallback to `idp_tenant_domain`) is deployed and re-attached in the Login flow, then log out/back in to regenerate the ID token.
-2. Visit the live URL in a private/incognito browser window.
-3. Click "Log in with SSO", authenticate against the test IdP (Auth0), confirm return to `/` shows the styled "Welcome" card with the resolved tenant ID.
-4. Refresh the browser tab — confirm session persists with no re-auth prompt (AUTH-02).
-5. Attempt `/?tenant_id=some-other-tenant` — confirm the displayed tenant is unchanged (AUTH-03 negative test).
-6. (Optional) Test the no-tenant-claim-user path to confirm generic access-denied routing, if a second test user is available.
+2. If using an Auth0 namespaced claim, set `OIDC_TENANT_CLAIM` to the exact emitted ID-token claim key. Keep `AUTH_DEBUG_CALLBACK=true` only while diagnosing failed callback returns.
+3. Visit the live URL in a private/incognito browser window.
+4. Click "Log in with SSO", authenticate against the test IdP (Auth0), confirm return to `/` shows the styled "Welcome" card with the resolved tenant ID.
+5. Refresh the browser tab — confirm session persists with no re-auth prompt (AUTH-02).
+6. Attempt `/?tenant_id=some-other-tenant` — confirm the displayed tenant is unchanged (AUTH-03 negative test).
+7. Turn `AUTH_DEBUG_CALLBACK=false` after the live callback is verified.
+8. (Optional) Test the no-tenant-claim-user path to confirm generic access-denied routing, if a second test user is available.
 
 ## Next Phase Readiness
 

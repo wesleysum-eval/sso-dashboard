@@ -31,7 +31,7 @@ Enterprise users log in through their company's SSO on the live deployed app (fr
 ### Claude's Discretion
 - Specific OIDC library/SDK choice (e.g., `openid-client`, `jose` for JWT signing) — left to research/planning to determine what's compatible with the EdgeOne Edge Functions runtime.
 - JWT expiry duration and refresh strategy (e.g., sliding expiry vs fixed) — not discussed, use reasonable defaults (research to confirm platform constraints).
-- Exact claim name for tenant mapping (`tenant_id` vs `account_id` vs custom) — pick one convention during planning, document it as the integration contract for customer onboarding docs (future work, out of this phase).
+- Exact claim name for tenant mapping (`tenant_id` vs `account_id` vs namespaced custom claim) — default to `tenant_id`, but allow a deployment-specific `OIDC_TENANT_CLAIM` override because Auth0 and similar IdPs commonly emit custom claims under URI-style namespaced keys.
 
 </decisions>
 

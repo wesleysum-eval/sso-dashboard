@@ -52,7 +52,7 @@ created: 2026-08-11
 
 - [ ] `package.json` — does not exist yet; created in Plan 02-01 Task 1 (`npm install openid-client jose`)
 - [ ] `edge-functions/lib/oidc-config.js`, `edge-functions/lib/session.js`, `edge-functions/api/auth/login.js`, `edge-functions/api/auth/callback.js`, `access-denied.html` — all new, created across Plan 02-01 Tasks 1–2
-- [ ] Test/throwaway OIDC IdP (Auth0/Okta/Keycloak free tier) provisioned with a test user carrying a `tenant_id` custom claim — declared as `user_setup` in `02-01-PLAN.md`; no automated test of AUTH-01/02/03 is possible without this
+- [ ] Test/throwaway OIDC IdP (Auth0/Okta/Keycloak free tier) provisioned with a test user carrying the configured tenant claim (`tenant_id` by default, or `OIDC_TENANT_CLAIM` for namespaced Auth0 custom claims) — declared as `user_setup` in `02-01-PLAN.md`; no automated test of AUTH-01/02/03 is possible without this
 - [ ] Five environment variables (`OIDC_ISSUER_URL`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_REDIRECT_URI`, `SESSION_SIGNING_KEY`) set via EdgeOne Makers Console on the GitHub-connected canonical project, followed by a `git push` redeploy — per Phase 1's proven console-then-redeploy pattern (01-02-SUMMARY.md)
 
 *Confirmed pattern from Phase 1: env vars set via CLI (`edgeone makers env set`) silently no-op on this Github-connected project — Console UI + redeploy is the only working path.*
@@ -68,6 +68,10 @@ created: 2026-08-11
 | Visual/cookie inspection confirming tenant_id query param has no effect in a live browser context | AUTH-03 | Combines a curl-verifiable server behavior (already automated in 02-01-T2) with a human visual check of dev-tools cookie contents for extra confidence | Plan 02-02 Task 2, step 3 |
 | Unmapped-user access-denied path (optional) | D-05 (not a v1 requirement ID, but a locked CONTEXT.md decision) | Requires a second test IdP user without the `tenant_id` claim configured — may not be available this session | Plan 02-02 Task 2, step 4 (explicitly optional; note if skipped) |
 | npm package legitimacy (jose, openid-client, oauth4webapi) | — | Automated "too-new" heuristic gate flags all three as a documented false positive (maintainer `panva`, tens of millions of weekly downloads) — human visual confirmation on npmjs.com required before any install, per project convention of never auto-approving security-sensitive package installs | Plan 02-01 Task 0 |
+
+## Live Callback Debugging Addendum
+
+When EdgeOne does not expose Edge Function logs, temporarily set `AUTH_DEBUG_CALLBACK=true` and redeploy before running the browser checkpoint. `/access-denied.html` will display non-token failure metadata such as `missing_oidc_txn_cookie`, `authorization_code_grant_failed`, or `missing_tenant_claim`. If the failure is `missing_tenant_claim`, set `OIDC_TENANT_CLAIM` to the exact ID-token claim key emitted by the IdP. If the failure is `authorization_code_grant_failed` with the EdgeOne body-initializer message, verify that `edge-functions/lib/oidc-config.js` is deployed with the custom fetch wrapper that converts `URLSearchParams` bodies to form-encoded strings. Disable `AUTH_DEBUG_CALLBACK` after the checkpoint passes.
 
 ---
 

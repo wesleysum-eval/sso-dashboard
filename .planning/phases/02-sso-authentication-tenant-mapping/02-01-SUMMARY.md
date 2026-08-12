@@ -29,8 +29,8 @@ tech-stack:
   patterns:
     - "Generic OIDC client via per-customer env vars (D-02) — getOidcConfig(env) has zero vendor-specific branching"
     - "JWT-in-httpOnly-cookie session (D-06) — signSession()/verifySession() in edge-functions/lib/session.js, no server-side store"
-    - "Identical-redirect denial pattern (D-05) — every auth failure branch (missing txn cookie, invalid exchange, missing tenant claim) redirects 302 to the same /access-denied.html with no distinguishing detail"
-    - "Tenant identity read exclusively from tokens.claims().tenant_id post-signature-verification — never from request.url/searchParams/headers/body"
+    - "Generic-denial pattern (D-05) — every auth failure branch redirects 302 to /access-denied.html with no distinguishing detail by default; temporary AUTH_DEBUG_CALLBACK diagnostics are allowed only during live onboarding/debugging"
+    - "Tenant identity read exclusively from tokens.claims()[OIDC_TENANT_CLAIM || 'tenant_id'] post-signature-verification — never from request.url/searchParams/headers/body"
 
 key-files:
   created:
@@ -47,7 +47,7 @@ key-files:
 key-decisions:
   - "Implemented both PKCE and nonce validation in the callback (defense-in-depth per RESEARCH.md Alternatives Considered) rather than PKCE alone"
   - "12h fixed JWT expiry per RESEARCH.md Pitfall 4 recommendation — a session-cookie lifetime, not an access-token lifetime"
-  - "tenant_id (bare, unnamespaced) used as the claim name per RESEARCH.md Assumption A3 / D-04 convention"
+  - "tenant_id remains the default claim name per RESEARCH.md Assumption A3 / D-04 convention, but live Auth0 testing added OIDC_TENANT_CLAIM for namespaced/custom IdP claim keys"
 
 patterns-established:
   - "Auth failure paths must redirect through a single shared redirectToAccessDenied() helper — any future auth-adjacent Edge Function should reuse this exact shape rather than inventing a new error response"
@@ -105,7 +105,7 @@ coverage:
         ref: "curl 'https://sso-dashboard-0eso53cx.edgeone.dev/api/auth/callback?code=invalid&state=invalid&tenant_id=attacker-supplied-tenant' -> HTTP 302, Location: /access-denied.html (spoofed tenant_id query param has zero effect, confirmed live post-fix)"
         status: pass
       - kind: manual_procedural
-        ref: "code review of edge-functions/api/auth/callback.js: claims.tenant_id (from tokens.claims(), post-verification) is the only source ever assigned to the session's tenant claim; no request.url/searchParams/header value is read for this purpose anywhere in login.js/callback.js/session.js"
+        ref: "code review of edge-functions/api/auth/callback.js: claims[env.OIDC_TENANT_CLAIM || 'tenant_id'] (from tokens.claims(), post-verification) is the only source ever assigned to the session's tenant claim; no request.url/searchParams/header value is read for this purpose anywhere in login.js/callback.js/session.js"
         status: pass
     human_judgment: false
     rationale: "Live negative test now confirmed passing after the AbortSignal.timeout and setCookies fixes were deployed. Code-level guarantee independently verified by code review as well."
@@ -131,8 +131,8 @@ status: complete
 ## Accomplishments
 - Task 0 (package legitimacy checkpoint) was approved by the human in a prior turn — confirmed via live `npm view`/npm registry API data (maintainer `panva`, no `postinstall` scripts, tens of millions of weekly downloads) before any install ran.
 - Task 1: Built the complete tracer slice — `package.json`/npm install, `getOidcConfig(env)` (generic discovery client, D-02), `signSession()`/`verifySession()` (JWT session helpers, D-06), `/api/auth/login` (PKCE + nonce + state, redirect to IdP), `/api/auth/callback` (token exchange, session issuance). Deployed via `git push origin main`; redeploy confirmed complete via the sibling static asset check.
-- Task 2: Added `access-denied.html` (generic, D-05) and tenant-claim validation in `callback.js` — missing/invalid `tenant_id` routes through the identical redirect branch as every other auth failure, with a server-side-only diagnostic log that never reaches the HTTP response.
-- Code review confirms `claims.tenant_id` (post-signature-verification via `tokens.claims()`) is the only source ever assigned to the session's tenant claim anywhere in the auth code path — no `request.url`, `searchParams`, or header value is read for this purpose (AUTH-03 hard requirement).
+- Task 2: Added `access-denied.html` (generic, D-05) and tenant-claim validation in `callback.js` — missing/invalid tenant claim routes through the identical redirect branch as every other auth failure by default, with diagnostics gated behind server logs or the temporary `AUTH_DEBUG_CALLBACK=true` onboarding flag.
+- Code review confirms `claims[env.OIDC_TENANT_CLAIM || 'tenant_id']` (post-signature-verification via `tokens.claims()`) is the only source ever assigned to the session's tenant claim anywhere in the auth code path — no `request.url`, `searchParams`, or header value is read for this purpose (AUTH-03 hard requirement).
 
 ## Task Commits
 
@@ -155,7 +155,7 @@ _Task 0 (npm package legitimacy checkpoint) produced no commit — it is a gate,
 
 ## Decisions Made
 - Implemented both PKCE and `nonce` validation in the callback (RESEARCH.md "implement both" recommendation) rather than PKCE alone, since the marginal cost is near zero and it provides OIDC-layer defense-in-depth alongside PKCE's OAuth-layer protection.
-- Used the bare `tenant_id` claim name convention (RESEARCH.md Assumption A3 recommendation) rather than a namespaced/URI-prefixed variant — documented here as the integration contract for future customer-onboarding docs, per D-04.
+- Used bare `tenant_id` as the default claim name (RESEARCH.md Assumption A3 recommendation), with a later live-debugging update adding `OIDC_TENANT_CLAIM` for namespaced/URI-prefixed IdP custom claims.
 - 12-hour fixed JWT expiry (RESEARCH.md Pitfall 4 recommendation) — a session-cookie lifetime appropriate for AUTH-02's "persists across browser refresh" requirement, distinct from a short-lived OAuth access-token convention.
 
 ## Deviations from Plan

@@ -27,7 +27,7 @@
 ### Claude's Discretion
 - Specific OIDC library/SDK choice (e.g., `openid-client`, `jose` for JWT signing) — left to research/planning to determine what's compatible with the EdgeOne Edge Functions runtime. **Resolved below in Standard Stack.**
 - JWT expiry duration and refresh strategy (e.g., sliding expiry vs fixed) — not discussed, use reasonable defaults (research to confirm platform constraints). **Resolved below in Code Examples / Pitfall 4.**
-- Exact claim name for tenant mapping (`tenant_id` vs `account_id` vs custom) — pick one convention during planning, document it as the integration contract for customer onboarding docs (future work, out of this phase). **Recommendation: `tenant_id`** (matches the decision's own primary example, and is the most common convention across IdP custom-claim documentation reviewed this session).
+- Exact claim name for tenant mapping (`tenant_id` vs `account_id` vs custom) — pick one convention during planning, document it as the integration contract for customer onboarding docs (future work, out of this phase). **Updated recommendation after live Auth0 testing: default to `tenant_id`, but support `OIDC_TENANT_CLAIM` for deployment-specific namespaced custom claims** (for example `https://example.com/tenant_id`). This keeps the app generic while avoiding a hard dependency on one IdP's custom-claim naming convention.
 
 ### Deferred Ideas (OUT OF SCOPE)
 - **KV-backed sessions (server-side revocation)** — deferred, not because it's out of scope, but because it's blocked on the KV namespace binding (Phase 1 Plan 02, currently skipped). If/when KV is set up, revisit whether to migrate from JWT cookies to KV-backed sessions for revocation capability. Not a v1/v2 requirement today, but noted as a natural follow-up.
@@ -151,7 +151,7 @@ Browser (unauthenticated visit to any protected page)
 │    { pkceCodeVerifier: verifier, expectedState: state })     │
 │  - ID token signature verified INSIDE authorizationCodeGrant │
 │    (openid-client validates iss/aud/exp/nonce automatically) │
-│  - extract claims.tenant_id                                 │
+│  - extract claims[OIDC_TENANT_CLAIM || 'tenant_id']         │
 │    - missing/unrecognized → redirect → /access-denied (D-05)│
 │    - present → proceed                                       │
 │  - new SignJWT({ tenant_id, sub }).setExpirationTime('12h')  │
@@ -277,7 +277,8 @@ export async function onRequestGet({ request, env }) {
   }
 
   const claims = tokens.claims(); // ID token claims, already signature-verified by openid-client
-  const tenantId = claims?.tenant_id;
+  const tenantClaimName = env.OIDC_TENANT_CLAIM || 'tenant_id';
+  const tenantId = claims?.[tenantClaimName];
   if (!tenantId) return redirectToAccessDenied(); // D-05: generic denial, no leak
 
   const secret = new TextEncoder().encode(env.SESSION_SIGNING_KEY);
@@ -326,7 +327,7 @@ export async function requireSession(request, env) {
 ```
 
 ### Anti-Patterns to Avoid
-- **Trusting an unsigned/client-echoed tenant claim:** AUTH-03 requires the tenant mapping be un-influenceable by client input. Never read `tenant_id` from a query parameter, request body, or any value the browser could have altered — only from the ID token's claims *after* `openid-client`'s internal signature/issuer/audience verification inside `authorizationCodeGrant`/`.claims()`. `[CITED: rfc9700 §4.5]`
+- **Trusting an unsigned/client-echoed tenant claim:** AUTH-03 requires the tenant mapping be un-influenceable by client input. Never read `tenant_id` or the configured `OIDC_TENANT_CLAIM` from a query parameter, request body, or any value the browser could have altered — only from the ID token's claims *after* `openid-client`'s internal signature/issuer/audience verification inside `authorizationCodeGrant`/`.claims()`. `[CITED: rfc9700 §4.5]`
 - **Using `context.env.KV_NAME`-style access for the Cookies API:** EdgeOne's `Cookies` is a constructor (`new Cookies(...)`) and a `response.setCookies(cookies)` method — not a bare global object like the KV binding. Mixing up these two different "inject a global" patterns (documented in Phase 1's research for KV) is a realistic confusion risk since both are described as "injected at runtime." `[VERIFIED: edgeone.ai/document/52685]`
 - **Setting the OIDC client secret via CLI `env set` and assuming it reaches the live GitHub-connected deployment:** Phase 1 proved this is a *separate project identity* problem. Use the console UI path (Project Settings → Environment Management) on the GitHub-connected project specifically. See Pitfall 1.
 - **307 redirects anywhere in the OIDC flow:** RFC 9700 explicitly warns 307 preserves the HTTP method/body on redirect, which can leak credentials if a POST-based interaction is ever redirected this way. Use 302 (or 303) for all redirects in this flow — the sample code above uses 302 throughout. `[CITED: rfc9700 §4.12]`
@@ -359,7 +360,7 @@ export async function requireSession(request, env) {
 ### Pitfall 3: Attribute name mismatch between claim extraction and Wave 0 test fixtures
 **What goes wrong:** Planning/tests assume `tenant_id` as the claim name (per this research's recommendation), but a test IdP or mock is configured with `account_id` or a namespaced claim (e.g. `https://example.com/tenant_id`, a common Auth0/Okta convention for custom claims), causing every login to silently fall into the D-05 "Access denied" path.
 **Why it happens:** OIDC custom claims are unstandardized by nature (D-04 explicitly notes this depends on customer IT configuration); many enterprise IdPs (Auth0, Okta) require or default to namespaced/URI-prefixed custom claim names rather than bare `tenant_id`.
-**How to avoid:** Document the exact expected claim name (`tenant_id`, bare — this research's recommendation) prominently in the callback handler's code comments and in any test-IdP setup instructions, and make the "claim missing" branch log (server-side, not user-visible per D-05) which claim name was expected vs. what keys were actually present in the ID token, to make Wave 0 debugging fast without violating the no-leak requirement toward end users.
+**How to avoid:** Document the exact expected claim name prominently in the callback handler's code comments and in any test-IdP setup instructions. The app defaults to `tenant_id`, but deployments can set `OIDC_TENANT_CLAIM` to the exact ID-token claim key emitted by the IdP, including namespaced Auth0-style keys such as `https://example.com/tenant_id`. Keep the "claim missing" branch diagnostic server-side by default; if EdgeOne logs are unavailable during setup, temporarily enable `AUTH_DEBUG_CALLBACK=true` to show the non-token claim-key diagnostic on `/access-denied.html`, then turn it back off.
 **Warning signs:** Every test login lands on `/access-denied.html` even with a correctly-configured test IdP.
 
 ### Pitfall 4: JWT expiry vs. "persists across browser refresh" ambiguity (AUTH-02)
@@ -371,8 +372,8 @@ export async function requireSession(request, env) {
 ### Pitfall 5: Leaking tenant-mapping info through error messages or response timing (violates D-05)
 **What goes wrong:** An error page or API response reveals *why* access was denied (e.g. "no tenant_id claim found", "unrecognized tenant abc-123"), or the "Access denied" page takes a measurably different amount of time to render depending on whether the claim was missing vs. present-but-unrecognized — both leak information D-05 explicitly says must not be exposed.
 **Why it happens:** Default error-handling instincts (helpful error messages, early-return optimizations) work directly against the security requirement here.
-**How to avoid:** The `/access-denied.html` page must be a single generic static asset with no dynamic content, reached via the same redirect regardless of *which* tenant-mapping failure occurred (missing claim, malformed claim, unrecognized tenant ID). Any diagnostic detail belongs only in server-side logs, never in the response body or URL query string.
-**Warning signs:** Code review finds a `?reason=` query parameter on the access-denied redirect, or distinct error page variants per failure type.
+**How to avoid:** The `/access-denied.html` page must be a single generic static asset with no dynamic content, reached via the same redirect regardless of *which* tenant-mapping failure occurred (missing claim, malformed claim, unrecognized tenant ID). Any diagnostic detail belongs only in server-side logs in normal operation. During live setup only, `AUTH_DEBUG_CALLBACK=true` is an explicit temporary exception that appends non-token failure metadata to the redirect so humans can debug when EdgeOne does not surface Edge Function logs; this flag must be disabled after verification.
+**Warning signs:** Code review finds an unconditional `?reason=` query parameter on the access-denied redirect, distinct error page variants per failure type, or `AUTH_DEBUG_CALLBACK=true` left enabled after onboarding.
 
 ### Pitfall 6: Social-login IdP users have no `user_metadata` by default (live gotcha, found during Phase 2 verification)
 **What goes wrong:** A Post-Login Action reading `event.user.user_metadata.tenant_id` works fine for database-connection users, but for social-login identities (Google, GitHub, etc. via `google-oauth2|...` style `user_id`), Auth0 never auto-populates `user_metadata` — it's an empty/absent object unless something has explicitly written to it. The claim silently ends up `undefined`, and the user lands on `/access-denied.html` even though the Action code, deployment, and flow-attachment are all otherwise correct.
@@ -388,6 +389,12 @@ exports.onExecutePostLogin = async (event, api) => {
 ```
 Note the optional-chaining on `user_metadata?.` — reading `.tenant_id` off an `undefined` `user_metadata` throws inside the Action, which is a second, distinct failure mode from a merely-empty claim (both still resolve to the same generic access-denied page per D-05, so either way the symptom looks identical to the end user).
 **Warning signs:** Full IdP login succeeds (redirect to Auth0, credentials accepted) but the app denies access immediately after return; the user's Auth0 profile (Raw JSON view) shows no `user_metadata` key at all, or an empty `{}`.
+
+### Pitfall 7: EdgeOne fetch rejects URLSearchParams token-exchange bodies
+**What goes wrong:** Auth0 logs show a successful login and the callback reaches `openid-client.authorizationCodeGrant`, but the app redirects to `/access-denied.html` with debug details like `authorization_code_grant_failed` and `Failed to construct Request: only String/ArrayBuffer/ArrayBufferView/Blob/ReadableStream/FormData is allowed as the body initializer`.
+**Why it happens:** `openid-client`/`oauth4webapi` pass a `URLSearchParams` object as the OAuth token-endpoint request body. Standards-compliant Fetch accepts `URLSearchParams`, but EdgeOne's Edge Function runtime rejected that body initializer during live testing.
+**How to avoid:** Install a custom fetch on the OIDC `Configuration` that detects `init.body instanceof URLSearchParams`, preserves or sets `content-type: application/x-www-form-urlencoded;charset=UTF-8`, and passes `init.body.toString()` to EdgeOne's `fetch`. This is a runtime compatibility shim only; keep `openid-client` responsible for discovery, PKCE, state/nonce, token response processing, and ID-token verification.
+**Warning signs:** `AUTH_DEBUG_CALLBACK=true` shows `reason: authorization_code_grant_failed`, `error: TypeError`, and the body-initializer message above after a successful IdP login event.
 
 ## Code Examples
 
