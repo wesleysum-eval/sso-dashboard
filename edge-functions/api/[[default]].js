@@ -3,6 +3,7 @@ import {
   onRequestGet as getTenantConnect,
   onRequestPost as postTenantConnect,
 } from './tenant/connect.js';
+import { onRequestPost as postGenerate } from './generate.js';
 
 function notFound() {
   return new Response(JSON.stringify({ error: 'not_found' }), {
@@ -25,6 +26,10 @@ export async function onRequest(context) {
 
   if (url.pathname === '/api/tenant/connect' && method === 'POST') {
     return postTenantConnect(context);
+  }
+
+  if (url.pathname === '/api/generate' && method === 'POST') {
+    return postGenerate(context);
   }
 
   return notFound();
