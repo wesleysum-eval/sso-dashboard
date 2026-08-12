@@ -54,8 +54,10 @@ Plans:
   1. A logged-in user can select "CDN Traffic Stats" as their data source from the selection screen.
   2. A logged-in user can select "Security Events" as their data source from the selection screen.
   3. Every data-source query executed by the app is scoped server-side to the logged-in user's own EdgeOne account; no request, regardless of input, returns another tenant's data.
-**Plans**: TBD
-**UI hint**: yes
+**Plans:** 2 plans
+Plans:
+- [ ] 03-01-PLAN.md — Tracer: CDN Traffic Stats end-to-end (session→KV tenant lookup→TC3-signed teo API call→picker card) (DATA-01, DATA-03)
+- [ ] 03-02-PLAN.md — Security Events route + complete two-card picker + full live DATA-01/02/03 verification incl. cross-tenant negative test (DATA-02, DATA-03)
 
 ### Phase 4: Prompt-Driven Dashboard Generation & Save
 **Goal**: A logged-in user can describe the dashboard they want in natural language, get a generated read-only dashboard from their selected data source, refine it by re-prompting, and save it for later — all verified against the live EdgeOne deployment.
@@ -79,5 +81,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. EdgeOne Deployment Foundation | 2/2 | Complete | 2026-08-11 |
 | 2. SSO Authentication & Tenant Mapping | 0/2 | Planned | - |
-| 3. Tenant-Scoped Data Source Selection | 0/TBD | Not started | - |
+| 3. Tenant-Scoped Data Source Selection | 0/2 | Planned | - |
 | 4. Prompt-Driven Dashboard Generation & Save | 0/TBD | Not started | - |
