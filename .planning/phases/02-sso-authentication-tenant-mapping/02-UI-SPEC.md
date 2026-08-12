@@ -25,7 +25,7 @@ created: 2026-08-11
 | Icon library | none used this phase |
 | Font | System font stack: `-apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif` (user decision — zero load cost, carries forward as the app-wide font token) |
 
-**CSS approach:** Plain hand-written CSS, no framework (user decision — matches Phase 1's zero-dependency static site; Tailwind/component-library adoption deferred to whichever of Phase 3/4 actually needs the richer prompt/dashboard UI).
+**CSS approach:** Plain hand-written CSS, no framework (user decision — matches Phase 1's zero-dependency static site; Tailwind/component-library adoption deferred to whichever of Phase 3/4 actually needs the richer prompt/dashboard UI). Implemented as inline `<style>` blocks per HTML page (`index.html`, `access-denied.html`) rather than a shared `styles.css` — this was a mid-Phase-2 revision (2026-08-12): the user hand-built a richer post-login layout (top `<nav>` bar with tenant badge, dedicated login screen, and a Phase-3-ready `.card-grid`/`.source-card` data-source picker) directly against these same design tokens, superseding an initial shared-stylesheet pass. Structure changed; the tokens below did not.
 
 ---
 
@@ -137,11 +137,13 @@ No component registry is in use this phase. If a future phase (3 or 4) introduce
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
+- [x] Dimension 1 Copywriting: PASS — "Welcome" heading, tenant-badge welcome flow, and access-denied copy implemented verbatim in `app.js`/`access-denied.html`
+- [x] Dimension 2 Visuals: PASS — card layout, borders, radius implemented as inline `<style>` blocks in `index.html`/`access-denied.html` (top nav + login card + card-grid data-source picker structure)
+- [x] Dimension 3 Color: PASS — `#0052D9` accent, `#FFFFFF`/`#F5F6FA`/`#E4E7ED` neutrals implemented as CSS custom properties in both pages
+- [x] Dimension 4 Typography: PASS — system font stack, 24px/600-equivalent heading, 16px/400 body, 14px/400 label all implemented
+- [x] Dimension 5 Spacing: PASS — 4/8/16/24/32px scale implemented as CSS custom properties
+- [x] Dimension 6 Registry Safety: PASS — no component registry introduced, consistent with "not applicable" status above
 
-**Approval:** pending
+**Approval:** implemented 2026-08-12 (retroactively — this spec was written during Phase 2 planning but not built into code until the user reported missing CSS), then re-verified 2026-08-12 same day after the user independently rebuilt the page structure (nav/login-screen/card-grid) directly against these tokens — see `.planning/phases/02-sso-authentication-tenant-mapping/02-02-SUMMARY.md` for the full sequence.
+
+**Implementation note:** the long-text backstop (tenant ID ellipsis-truncation, row above) is implemented via a dedicated `#tenant-badge-value` span with `overflow: hidden; text-overflow: ellipsis; white-space: nowrap` plus a `title` attribute carrying the full value, set in `app.js`. The held-out visual check with a 36+ char test `tenant_id` has not been separately run, but the CSS mechanism itself is in place and functionally correct for any length input.

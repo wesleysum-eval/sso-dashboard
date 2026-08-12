@@ -374,6 +374,21 @@ export async function requireSession(request, env) {
 **How to avoid:** The `/access-denied.html` page must be a single generic static asset with no dynamic content, reached via the same redirect regardless of *which* tenant-mapping failure occurred (missing claim, malformed claim, unrecognized tenant ID). Any diagnostic detail belongs only in server-side logs, never in the response body or URL query string.
 **Warning signs:** Code review finds a `?reason=` query parameter on the access-denied redirect, or distinct error page variants per failure type.
 
+### Pitfall 6: Social-login IdP users have no `user_metadata` by default (live gotcha, found during Phase 2 verification)
+**What goes wrong:** A Post-Login Action reading `event.user.user_metadata.tenant_id` works fine for database-connection users, but for social-login identities (Google, GitHub, etc. via `google-oauth2|...` style `user_id`), Auth0 never auto-populates `user_metadata` — it's an empty/absent object unless something has explicitly written to it. The claim silently ends up `undefined`, and the user lands on `/access-denied.html` even though the Action code, deployment, and flow-attachment are all otherwise correct.
+**Why it happens:** `user_metadata`/`app_metadata` are Auth0 database-connection conventions; social connections carry their own provider-supplied profile fields instead (e.g. this project's test user had a top-level `idp_tenant_domain: "global.tencent.com"` field from the Google Workspace domain, not `user_metadata`).
+**How to avoid:** Either (a) manually seed `user_metadata.tenant_id` on each test/social-login user via the Auth0 Management API or dashboard, or (b) have the Action fall back to a social-IdP-supplied field, e.g.:
+```js
+exports.onExecutePostLogin = async (event, api) => {
+  const tenantId = event.user.user_metadata?.tenant_id || event.user.idp_tenant_domain;
+  if (tenantId) {
+    api.idToken.setCustomClaim('tenant_id', tenantId);
+  }
+};
+```
+Note the optional-chaining on `user_metadata?.` — reading `.tenant_id` off an `undefined` `user_metadata` throws inside the Action, which is a second, distinct failure mode from a merely-empty claim (both still resolve to the same generic access-denied page per D-05, so either way the symptom looks identical to the end user).
+**Warning signs:** Full IdP login succeeds (redirect to Auth0, credentials accepted) but the app denies access immediately after return; the user's Auth0 profile (Raw JSON view) shows no `user_metadata` key at all, or an empty `{}`.
+
 ## Code Examples
 
 ### EdgeOne Cookies API — verbatim constructor/methods (official docs)

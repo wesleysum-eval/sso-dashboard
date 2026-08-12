@@ -5,10 +5,10 @@ milestone_name: milestone
 current_phase: 03
 current_phase_name: tenant-scoped-data-source-selection
 status: executing
-stopped_at: Phase 3 Plan 01 Task 1 (CDN traffic tracer code) complete, halted pending human checkpoint; Phase 4 context gathered and ready for planning
-last_updated: "2026-08-12T02:40:00.000Z"
+stopped_at: Phase 2 UI-SPEC implemented and reconciled with user's own page-structure rebuild; live Auth0 tenant-claim gap diagnosed and fixed; Phase 3 Plan 01 Task 1 code complete pending credentials checkpoint; Phase 4 context ready for planning
+last_updated: "2026-08-12T03:15:00.000Z"
 last_activity: 2026-08-12
-last_activity_desc: Closed out Phase 2 Plan 02 Task 1 summary (session-aware /api/status, already live); built Phase 3 Plan 01 Task 1 tracer (teo-signer.js, tenant-mapping.js, cdn-traffic.js, picker card); gathered Phase 4 context (constrained-generation DSL design for GEN-03)
+last_activity_desc: Implemented 02-UI-SPEC.md's design contract, which had been written but never built — user reported no visible CSS. User then independently rebuilt the page structure (nav/login-screen/card-grid) with different colors; reconciled by keeping the structure and restoring the spec's EdgeOne-blue tokens/copy, removing the now-orphaned styles.css. Diagnosed a live SSO denial: test user was a Google social-login identity with no user_metadata, so the Auth0 Post-Login Action's tenant_id claim resolved to nothing; fixed by falling back to idp_tenant_domain. Documented both as 02-RESEARCH.md Pitfall 6 and updated 02-02-SUMMARY.md/02-UI-SPEC.md sign-off.
 progress:
   total_phases: 4
   completed_phases: 1
@@ -91,8 +91,12 @@ None yet.
 - SSO protocol choice (OIDC vs SAML) — resolved in Phase 2 (OIDC only, SAML excluded), no longer a blocker.
 
 **Outstanding human checkpoints (both are blocking, both require credentials/actions only the human can provide):**
-1. **Phase 2 Plan 02 Task 2** — live browser OIDC round-trip (login → IdP → return logged-in; refresh persists session; spoofed `tenant_id` query param has zero effect). See `.planning/phases/02-sso-authentication-tenant-mapping/02-02-PLAN.md` Task 2 `<how-to-verify>`.
-2. **Phase 3 Plan 01 Task 2** — requires: (a) a Tencent Cloud API SecretId/SecretKey pair with `teo` read permissions, (b) a real EdgeOne Zone ID, (c) one seeded KV record (`tenant:<tenant_id>` → `{zoneId, secretId, secretKey}`) matching the Phase 2 test IdP's actual tenant, (d) a `git push origin main` to trigger the live redeploy (nothing built this session is live yet — all Phase 3 commits are local only). See `.planning/phases/03-tenant-scoped-data-source-selection/03-01-PLAN.md` Task 2 `<how-to-verify>` and `user_setup` frontmatter block.
+1. **Phase 2 Plan 02 Task 2** — live browser OIDC round-trip (login → IdP → return logged-in; refresh persists session; spoofed `tenant_id` query param has zero effect). The Auth0 configuration blocker that was causing every login attempt to hit access-denied (test user's `tenant_id` claim resolving to nothing — see Pitfall 6 below) is now fixed at the Action level; user needs to log out/back in and re-run the checkpoint walkthrough in `.planning/phases/02-sso-authentication-tenant-mapping/02-02-PLAN.md` Task 2 `<how-to-verify>`.
+2. **Phase 3 Plan 01 Task 2** — requires: (a) a Tencent Cloud API SecretId/SecretKey pair with `teo` read permissions, (b) a real EdgeOne Zone ID, (c) one seeded KV record (`tenant:<tenant_id>` → `{zoneId, secretId, secretKey}`) matching the Phase 2 test IdP's actual tenant (now `global.tencent.com` per the Pitfall 6 fix), (d) already pushed and live as of the last push. See `.planning/phases/03-tenant-scoped-data-source-selection/03-01-PLAN.md` Task 2 `<how-to-verify>` and `user_setup` frontmatter block.
+
+**[NEW] Live gotcha found and fixed — Auth0 social-login users have no `user_metadata` by default.** The test user was a Google OAuth identity (`google-oauth2|...`); Auth0 never populates `user_metadata` for social connections, so the Post-Login Action's `event.user.user_metadata.tenant_id` read silently resolved to nothing, sending every login through the generic access-denied page even though the app's OIDC/session code was correct. Fixed by updating the Action to fall back to `event.user.idp_tenant_domain` (already populated for this Google Workspace user, resolving to `global.tencent.com`). Documented as `02-RESEARCH.md` Pitfall 6 for future onboarding reference — production customers using database-connection IdPs won't hit this path, but any future social-login test users will.
+
+**[NEW] UI-SPEC implementation gap closed, then reconciled with a user-driven restructure.** `02-UI-SPEC.md` (system font, EdgeOne blue `#0052D9`, spacing scale, card layout, exact copywriting) was written during Phase 2's UI-phase step but never actually built into code — `index.html`/`access-denied.html` remained Phase 1's bare unstyled HTML. User reported "I don't see any CSS design on the webpage yet." First fix: added a shared `styles.css` implementing the spec. The user then independently rebuilt `index.html`/`app.js`/`access-denied.html` into a richer structure (top nav with tenant badge, dedicated login screen, Phase-3-ready `.card-grid`/`.source-card` data-source picker) as per-page inline `<style>` blocks with different (indigo) colors, without initially flagging the change. Reconciled by keeping the user's structure/layout in full and swapping its color tokens + copy back to the spec's EdgeOne-blue palette and exact wording; `styles.css` removed as orphaned. `02-UI-SPEC.md`'s Checker Sign-Off and `02-02-SUMMARY.md` updated to describe the merged, final implementation.
 
 **Resolved this session:** Plan 02-01's live verification gap is closed. User set the 5 required env vars in EdgeOne Makers Console and provisioned a real test IdP (Auth0, with a `tenant_id` claim Action). Two genuine EdgeOne edge-runtime bugs surfaced once the code actually reached `openid-client` internals — (1) `AbortSignal.timeout` not implemented on the runtime, (2) `response.setCookies()` deprecated in favor of `Headers`-based `Set-Cookie` — both root-caused via local `edgeone makers dev` reproduction, fixed, and confirmed live.
 
@@ -109,13 +113,14 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-12T02:40:00.000Z
-Stopped at: Phase 3 Plan 01 Task 1 code complete (local commits, not pushed); Phase 4 context gathered
-Resume file: .planning/phases/03-tenant-scoped-data-source-selection/03-01-SUMMARY.md, .planning/phases/04-prompt-driven-dashboard-generation-save/04-CONTEXT.md
+Last session: 2026-08-12T03:15:00.000Z
+Stopped at: UI-SPEC implemented, reconciled with user's own page-structure rebuild, and live; Auth0 tenant-claim gap fixed at the Action level; Phase 3 credentials checkpoint still outstanding
+Resume file: .planning/phases/02-sso-authentication-tenant-mapping/02-02-SUMMARY.md, .planning/phases/03-tenant-scoped-data-source-selection/03-01-SUMMARY.md, .planning/phases/04-prompt-driven-dashboard-generation-save/04-CONTEXT.md
 
 **Next steps for the user:**
-1. Push local commits (`git push origin main`) to deploy Phase 2/3 code changes live.
-2. Resolve the two outstanding human checkpoints above (Phase 2 browser round-trip; Phase 3 Tencent Cloud credentials + KV seed).
-3. Decide the Phase 4 LLM provider/API key question.
-4. Run `/gsd-plan-phase 4` to turn `04-CONTEXT.md` into an executable PLAN.md — ready to go as soon as the provider decision lands.
-5. Run `/gsd-plan-phase 03 --wave 2` or continue with `03-02-PLAN.md` (Security Events route) once Plan 01's checkpoint is approved.
+1. Log out and back in via the app to regenerate the ID token with the fixed Auth0 Action (tenant_id now resolves via `idp_tenant_domain` fallback) — confirm you land on the styled "Welcome" card instead of access-denied.
+2. Complete Phase 2's remaining checkpoint steps (refresh persists session; spoofed `tenant_id` query param has no effect).
+3. Resolve the Phase 3 checkpoint (Tencent Cloud credentials + KV seed record).
+4. Decide the Phase 4 LLM provider/API key question.
+5. Run `/gsd-plan-phase 4` to turn `04-CONTEXT.md` into an executable PLAN.md.
+6. Continue with `03-02-PLAN.md` (Security Events route) once Plan 01's checkpoint is approved.

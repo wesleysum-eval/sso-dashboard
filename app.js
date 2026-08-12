@@ -2,28 +2,40 @@ fetch('/api/status')
   .then((r) => r.json())
   .then((data) => {
     const el = document.getElementById('result');
-    el.innerHTML = '';
+    const statusLine =
+      `hasConfig: ${data.hasConfig} | kvBound: ${data.kvBound} | ts: ${data.ts}`;
+
+    const loginScreen = document.getElementById('login-screen');
+    const navbar = document.getElementById('navbar');
+    const tenantBadgeValue = document.getElementById('tenant-badge-value');
 
     if (data.authenticated) {
-      const body = document.createElement('p');
-      body.append("You're signed in as tenant ");
-      const tenantSpan = document.createElement('span');
-      tenantSpan.className = 'label';
-      tenantSpan.textContent = data.tenantId;
-      tenantSpan.title = data.tenantId;
-      body.appendChild(tenantSpan);
-      body.append('.');
-      el.appendChild(body);
+      // Logged in: hide the login card, show the top nav with tenant badge.
+      loginScreen.classList.add('is-hidden');
+      navbar.classList.add('is-visible');
+      // 02-UI-SPEC.md long-text backstop: ellipsis-truncate via CSS, full
+      // value still available on hover via the title attribute.
+      tenantBadgeValue.textContent = data.tenantId;
+      tenantBadgeValue.title = data.tenantId;
+
+      el.textContent = '';
+      const status = document.createElement('div');
+      status.className = 'login-status';
+      status.textContent = statusLine;
+      el.appendChild(status);
     } else {
-      const body = document.createElement('p');
-      body.textContent = 'Sign in with your company SSO to continue.';
-      el.appendChild(body);
+      el.textContent = '';
 
       const loginLink = document.createElement('a');
-      loginLink.className = 'cta';
       loginLink.href = '/api/auth/login';
       loginLink.textContent = 'Log in with SSO';
+      loginLink.className = 'btn-primary';
       el.appendChild(loginLink);
+
+      const status = document.createElement('div');
+      status.className = 'login-status';
+      status.textContent = statusLine;
+      el.appendChild(status);
     }
 
     // Phase 3 (DATA-01/D-01): the "CDN Traffic Stats" picker card only
@@ -36,12 +48,7 @@ fetch('/api/status')
     }
   })
   .catch((err) => {
-    const el = document.getElementById('result');
-    el.innerHTML = '';
-    const errEl = document.createElement('p');
-    errEl.className = 'error';
-    errEl.textContent = `Error: ${err.message}`;
-    el.appendChild(errEl);
+    document.getElementById('result').textContent = `Error: ${err.message}`;
   });
 
 // Phase 3 (DATA-01): clicking the CDN Traffic Stats card fetches the
@@ -52,13 +59,17 @@ const cdnTrafficCard = document.getElementById('card-cdn-traffic');
 if (cdnTrafficCard) {
   cdnTrafficCard.addEventListener('click', () => {
     const resultEl = document.getElementById('data-source-result');
+    resultEl.classList.add('is-visible');
     resultEl.textContent = 'Loading…';
 
     fetch('/api/data/cdn-traffic')
       .then((r) => r.json())
       .then((data) => {
         if (data.available) {
-          resultEl.textContent = JSON.stringify(data.data);
+          resultEl.textContent = '';
+          const pre = document.createElement('pre');
+          pre.textContent = JSON.stringify(data.data, null, 2);
+          resultEl.appendChild(pre);
         } else {
           resultEl.textContent = 'No data available';
         }

@@ -3,21 +3,271 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Enterprise SSO Dashboard</title>
-    <link rel="stylesheet" href="/styles.css" />
+    <title>Enterprise Dashboard</title>
+    <style>
+      :root {
+        --color-primary: #0052d9;
+        --color-primary-hover: #003eb3;
+        --color-bg: #f5f6fa;
+        --color-card: #ffffff;
+        --color-border: #e4e7ed;
+        --color-text: #111827;
+        --color-text-muted: #6b7280;
+        --color-text-subtle: #9ca3af;
+        --shadow-card: 0 1px 3px rgba(16, 24, 40, 0.06), 0 8px 24px rgba(16, 24, 40, 0.06);
+        --radius-lg: 16px;
+        --radius-md: 10px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+          sans-serif;
+        background: var(--color-bg);
+        color: var(--color-text);
+      }
+
+      /* ---------- Top nav (dashboard state) ---------- */
+      .navbar {
+        display: none;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 32px;
+        background: var(--color-card);
+        border-bottom: 1px solid var(--color-border);
+      }
+
+      .navbar.is-visible {
+        display: flex;
+      }
+
+      .navbar-brand {
+        font-weight: 700;
+        font-size: 16px;
+        letter-spacing: -0.01em;
+      }
+
+      .navbar-right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .tenant-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        max-width: 240px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--color-text);
+        background: #e6edfb;
+        border: 1px solid #c7d7f5;
+        border-radius: 999px;
+        padding: 6px 12px;
+      }
+
+      .tenant-badge-value {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .tenant-badge::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #22c55e;
+      }
+
+      /* ---------- Login state ---------- */
+      .login-screen {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+      }
+
+      .login-screen.is-hidden {
+        display: none;
+      }
+
+      .login-card {
+        width: 100%;
+        max-width: 400px;
+        background: var(--color-card);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-card);
+        padding: 40px 36px;
+        text-align: center;
+      }
+
+      .login-card h1 {
+        margin: 0 0 8px;
+        font-size: 22px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+      }
+
+      .login-card p.subtitle {
+        margin: 0 0 28px;
+        font-size: 14px;
+        color: var(--color-text-muted);
+        line-height: 1.5;
+      }
+
+      .btn-primary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        padding: 12px 20px;
+        background: var(--color-primary);
+        color: #ffffff;
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+        border: none;
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: background 0.15s ease;
+      }
+
+      .btn-primary:hover {
+        background: var(--color-primary-hover);
+      }
+
+      .login-status {
+        margin-top: 24px;
+        padding-top: 16px;
+        border-top: 1px solid var(--color-border);
+        font-size: 11px;
+        color: var(--color-text-subtle);
+        word-break: break-word;
+      }
+
+      /* ---------- Dashboard state ---------- */
+      .dashboard-main {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 40px 24px;
+      }
+
+      .dashboard-main h2 {
+        margin: 0 0 4px;
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+      }
+
+      .dashboard-main .section-subtitle {
+        margin: 0 0 24px;
+        font-size: 14px;
+        color: var(--color-text-muted);
+      }
+
+      .card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 16px;
+      }
+
+      .source-card {
+        text-align: left;
+        background: var(--color-card);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        padding: 20px;
+        cursor: pointer;
+        font-family: inherit;
+        transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+      }
+
+      .source-card:hover {
+        box-shadow: var(--shadow-card);
+        border-color: var(--color-primary);
+        transform: translateY(-1px);
+      }
+
+      .source-card:active {
+        transform: translateY(0);
+      }
+
+      .source-card-title {
+        font-size: 15px;
+        font-weight: 600;
+        margin-bottom: 4px;
+      }
+
+      .source-card-desc {
+        font-size: 13px;
+        color: var(--color-text-muted);
+        line-height: 1.4;
+      }
+
+      .result-panel {
+        margin-top: 24px;
+        background: var(--color-card);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        padding: 16px;
+        font-size: 13px;
+        color: var(--color-text-muted);
+        display: none;
+      }
+
+      .result-panel.is-visible {
+        display: block;
+      }
+
+      .result-panel pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: 12px;
+        color: var(--color-text);
+      }
+    </style>
   </head>
   <body>
-    <div class="page">
-      <div class="card">
+    <nav id="navbar" class="navbar">
+      <span class="navbar-brand">Enterprise Dashboard</span>
+      <div class="navbar-right">
+        <span id="tenant-badge" class="tenant-badge">
+          <span id="tenant-badge-value" class="tenant-badge-value"></span>
+        </span>
+      </div>
+    </nav>
+
+    <div id="login-screen" class="login-screen">
+      <div class="login-card">
         <h1>Welcome</h1>
-        <div id="result" class="status-line">loading...</div>
-        <div id="data-source-section" class="picker-grid" style="display: none">
-          <h2>Select a data source</h2>
-          <button id="card-cdn-traffic" class="picker-card" type="button">CDN Traffic Stats</button>
-          <div id="data-source-result" class="data-result"></div>
-        </div>
+        <p class="subtitle">Sign in with your company account to view your reporting dashboard.</p>
+        <div id="result">loading...</div>
       </div>
     </div>
+
+    <main class="dashboard-main">
+      <div id="data-source-section" style="display: none">
+        <h2>Select a data source</h2>
+        <p class="section-subtitle">Choose the data you'd like to build a dashboard from.</p>
+        <div class="card-grid">
+          <button id="card-cdn-traffic" type="button" class="source-card">
+            <div class="source-card-title">CDN Traffic Stats</div>
+            <div class="source-card-desc">Outbound traffic volume across your zones, updated hourly.</div>
+          </button>
+        </div>
+        <div id="data-source-result" class="result-panel"></div>
+      </div>
+    </main>
+
     <script src="/app.js"></script>
   </body>
 </html>
