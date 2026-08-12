@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Enterprise Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
     <style>
       :root {
         --color-primary: #0052d9;
@@ -320,6 +321,132 @@
       .connect-form-message.is-success {
         color: #16a34a;
       }
+
+      /* ---------- Prompt panel + widget stack (Phase 4) ---------- */
+      .prompt-panel {
+        margin-top: 32px;
+        background: var(--color-card);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        padding: 20px;
+      }
+
+      .prompt-panel h2 {
+        margin: 0 0 4px;
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+
+      .prompt-textarea {
+        display: block;
+        width: 100%;
+        min-height: 44px;
+        margin-top: 16px;
+        padding: 10px 12px;
+        font-size: 14px;
+        font-family: inherit;
+        color: var(--color-text);
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+        resize: vertical;
+      }
+
+      .prompt-textarea:focus {
+        outline: none;
+        border-color: var(--color-primary);
+      }
+
+      .prompt-generate-btn {
+        width: auto;
+        margin-top: 12px;
+        padding: 10px 20px;
+      }
+
+      .prompt-generate-btn:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+
+      .widget-stack {
+        margin-top: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .widget-empty-state {
+        background: var(--color-card);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        padding: 24px;
+        text-align: center;
+      }
+
+      .widget-empty-heading {
+        font-size: 15px;
+        font-weight: 600;
+        margin-bottom: 4px;
+      }
+
+      .widget-empty-body {
+        font-size: 14px;
+        color: var(--color-text-muted);
+      }
+
+      .widget-card {
+        background: var(--color-card);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        padding: 16px;
+      }
+
+      .widget-card-title {
+        font-size: 15px;
+        font-weight: 600;
+        margin-bottom: 12px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .widget-placeholder .widget-card-title + div {
+        font-size: 13px;
+        color: var(--color-text-muted);
+      }
+
+      .stat-card-value {
+        font-size: 28px;
+        font-weight: 600;
+        line-height: 1.2;
+      }
+
+      .widget-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+
+      .widget-table th,
+      .widget-table td {
+        text-align: left;
+        padding: 6px 8px;
+        border-bottom: 1px solid var(--color-border);
+      }
+
+      .save-bar {
+        margin-top: 16px;
+      }
+
+      .error-banner {
+        margin-top: 16px;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: var(--radius-md);
+        padding: 12px 16px;
+        font-size: 14px;
+        color: #b91c1c;
+      }
     </style>
   </head>
   <body>
@@ -358,6 +485,31 @@
           </button>
         </div>
         <div id="data-source-result" class="result-panel"></div>
+      </div>
+
+      <div id="prompt-section" style="display: none">
+        <div class="prompt-panel">
+          <h2>Generate a dashboard</h2>
+          <textarea
+            id="prompt-textarea"
+            class="prompt-textarea"
+            placeholder="e.g. Show me traffic trends over the last 7 days"
+          ></textarea>
+          <button id="generate-btn" type="button" class="btn-primary prompt-generate-btn">
+            Generate Dashboard
+          </button>
+        </div>
+
+        <div id="error-banner" class="error-banner" style="display: none"></div>
+
+        <div id="widget-stack" class="widget-stack">
+          <div class="widget-empty-state">
+            <div class="widget-empty-heading">No dashboard yet</div>
+            <div class="widget-empty-body">
+              Describe what you want to see, then generate to build your dashboard.
+            </div>
+          </div>
+        </div>
       </div>
     </main>
 
