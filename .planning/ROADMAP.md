@@ -69,7 +69,10 @@ Plans:
   3. Dashboard generation only ever produces output from a fixed, constrained set of query/component types — never arbitrary executed code against live APIs.
   4. User can re-prompt to refine or regenerate the dashboard without returning to data-source selection.
   5. User can save a generated dashboard and retrieve it later under their account, with the full flow (login → data source → prompt → generate → save) verified end-to-end on the live EdgeOne deployment.
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 04-01-PLAN.md — Tracer: prompt -> LLM (EdgeOne Makers AI Gateway) -> closed-enum widget validation -> real teo data -> Chart.js/HTML rendering (GEN-01, GEN-02, GEN-03)
+- [ ] 04-02-PLAN.md — Re-prompt refinement + KV-backed save/retrieve + full live verification of all 5 success criteria (GEN-04, SAVE-01)
 **UI hint**: yes
 
 ## Progress
@@ -82,4 +85,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. EdgeOne Deployment Foundation | 2/2 | Complete | 2026-08-11 |
 | 2. SSO Authentication & Tenant Mapping | 0/2 | Planned | - |
 | 3. Tenant-Scoped Data Source Selection | 0/2 | Planned | - |
-| 4. Prompt-Driven Dashboard Generation & Save | 0/TBD | Not started | - |
+| 4. Prompt-Driven Dashboard Generation & Save | 0/2 | Planned | - |
