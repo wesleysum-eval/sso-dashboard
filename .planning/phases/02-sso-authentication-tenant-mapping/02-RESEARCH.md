@@ -488,15 +488,17 @@ const result = new Uint8Array(sha256Content);
 
 ## Open Questions
 
-1. **Does `openid-client`'s full dependency tree fit and execute correctly within EdgeOne Edge Functions' 5 MB code-package limit and 200ms CPU-time limit?**
+1. **(RESOLVED) Does `openid-client`'s full dependency tree fit and execute correctly within EdgeOne Edge Functions' 5 MB code-package limit and 200ms CPU-time limit?**
    - What we know: `openid-client` (unpacked ~225KB) + `jose` (unpacked ~247KB) + `oauth4webapi` are all individually small; combined well under 5MB even accounting for bundler overhead. The 200ms CPU limit excludes I/O wait (network fetches to the IdP), and Web Crypto operations (SHA-256 for PKCE, JWT signature verification) are hardware-accelerated, not pure-JS, so should be fast.
    - What's unclear: Whether the platform's build step actually tree-shakes/bundles these correctly for the `edge-functions/` output target specifically (see Assumption A1), and whether any of `openid-client`'s internal Web Crypto usage patterns hit an EdgeOne-specific edge case not covered by the officially-documented supported-algorithms table.
    - Recommendation: Wave 0 checkpoint — deploy a minimal Edge Function importing both libraries and calling `client.discovery()` against a real or mock IdP before writing the full login/callback flow on top of it.
+   - **Resolution**: Addressed directly in `02-01-PLAN.md` Task 1, which is marked `type="tracer"` — the full happy-path OIDC flow (discovery client, login redirect, callback token exchange) is built and verified end-to-end as the first production-quality slice before any expansion, rather than deferred to a separate Wave 0 spike. The automated verify commands (`curl` against `/api/auth/login` expecting a `302`) confirm the bundle deploys and executes correctly on the real platform before the plan is considered complete.
 
-2. **Should the OIDC discovery document be fetched fresh on every `/api/auth/login` request, or cached?**
+2. **(RESOLVED) Should the OIDC discovery document be fetched fresh on every `/api/auth/login` request, or cached?**
    - What we know: `client.discovery()` performs a `fetch()` to the IdP's `.well-known/openid-configuration` endpoint; this is I/O (not counted against the 200ms CPU budget) but does add latency per login attempt. The Pattern 1 code example above includes a best-effort in-memory module-scope cache, which persists only for the lifetime of a "warm" Edge Function instance (not guaranteed across invocations, and there is no KV to persist it durably per D-06).
    - What's unclear: Whether EdgeOne Edge Functions have long-lived enough warm-instance reuse for this in-memory cache to meaningfully reduce latency in practice, versus refetching being cheap enough that the cache adds complexity for little benefit.
    - Recommendation: Ship with the module-scope cache as shown (harmless if it never hits), but do not treat cache-hit behavior as guaranteed or test against it — treat discovery latency as "always possibly a fresh fetch" for planning/performance purposes.
+   - **Resolution**: Implemented exactly as recommended in `edge-functions/lib/oidc-config.js`'s `getOidcConfig(env)` (see `02-01-PLAN.md` Task 1) — a module-scope memoized cache is used as a best-effort optimization only. No test or plan step depends on a cache hit occurring; discovery latency is treated as always-possibly-fresh for planning purposes, matching the recommendation exactly.
 
 ## Environment Availability
 
