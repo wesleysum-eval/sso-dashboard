@@ -86,7 +86,7 @@ None yet.
 
 ### Blockers/Concerns
 
-- **[NEW] Phase 4 LLM provider/API key is an unresolved open question** — needs human decision on provider (OpenAI-compatible, Tencent Hunyuan, DeepSeek, Anthropic, etc.), procuring a real API key, and confirming JSON-mode/structured-output support before Phase 4 planning can fully lock D-04. See `.planning/phases/04-prompt-driven-dashboard-generation-save/04-CONTEXT.md` Claude's Discretion section.
+- **[RESOLVED 2026-08-12]** Phase 4 LLM provider/API key — now using EdgeOne Makers' built-in AI Gateway (`ai-gateway.edgeone.link`, OpenAI-compatible), model `@makers/deepseek-v4-flash`, no external vendor account needed. Requires generating a `MAKERS_MODELS_KEY` via EdgeOne Makers console → Models → API Key. Note: official docs flag built-in models as prototyping-only, not production-guaranteed — acceptable for this project's v1 scope. See `04-CONTEXT.md` D-04.
 - **[RESOLVED — was flagged, now designed]** Constrained generation vocabulary/DSL for dashboard generation (GEN-03) — concrete design now exists in 04-CONTEXT.md D-01/D-02/D-03 (closed enums, server-side validation, no LLM string ever reaches the outbound API call). Ready for Phase 4 planning to consume.
 - SSO protocol choice (OIDC vs SAML) — resolved in Phase 2 (OIDC only, SAML excluded), no longer a blocker.
 
