@@ -234,6 +234,92 @@
         font-size: 12px;
         color: var(--color-text);
       }
+
+      /* ---------- Tenant connection form ---------- */
+      .connect-card {
+        background: var(--color-card);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        padding: 20px;
+        margin-bottom: 24px;
+      }
+
+      .connect-card h3 {
+        margin: 0 0 4px;
+        font-size: 15px;
+        font-weight: 600;
+      }
+
+      .connect-card .connect-desc {
+        margin: 0 0 16px;
+        font-size: 13px;
+        color: var(--color-text-muted);
+      }
+
+      .connect-form label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--color-text-muted);
+        margin-bottom: 4px;
+      }
+
+      .connect-form .field {
+        margin-bottom: 12px;
+      }
+
+      .connect-form input {
+        width: 100%;
+        padding: 8px 10px;
+        font-size: 13px;
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+        font-family: inherit;
+      }
+
+      .connect-form input:focus {
+        outline: none;
+        border-color: var(--color-primary);
+      }
+
+      .btn-secondary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 16px;
+        background: transparent;
+        color: var(--color-primary);
+        font-size: 13px;
+        font-weight: 600;
+        border: 1px solid var(--color-primary);
+        border-radius: var(--radius-md);
+        cursor: pointer;
+      }
+
+      .connect-status-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .connect-status-text {
+        font-size: 13px;
+        color: var(--color-text);
+      }
+
+      .connect-form-message {
+        margin-top: 10px;
+        font-size: 12px;
+      }
+
+      .connect-form-message.is-error {
+        color: #dc2626;
+      }
+
+      .connect-form-message.is-success {
+        color: #16a34a;
+      }
     </style>
   </head>
   <body>
@@ -255,6 +341,13 @@
     </div>
 
     <main class="dashboard-main">
+      <div id="tenant-connect-section" style="display: none">
+        <div id="connect-card" class="connect-card">
+          <!-- Populated by app.js: either the connect form (not connected)
+               or a "Connected — Zone: {zoneId}" status row (connected). -->
+        </div>
+      </div>
+
       <div id="data-source-section" style="display: none">
         <h2>Select a data source</h2>
         <p class="section-subtitle">Choose the data you'd like to build a dashboard from.</p>
