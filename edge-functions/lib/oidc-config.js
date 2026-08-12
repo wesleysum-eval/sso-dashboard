@@ -30,6 +30,23 @@ if (typeof AbortSignal.timeout !== 'function') {
   };
 }
 
+async function edgeOneCompatibleFetch(input, init = {}) {
+  if (init.body instanceof URLSearchParams) {
+    const headers = new Headers(init.headers);
+    if (!headers.has('content-type')) {
+      headers.set('content-type', 'application/x-www-form-urlencoded;charset=UTF-8');
+    }
+
+    return fetch(input, {
+      ...init,
+      headers,
+      body: init.body.toString(),
+    });
+  }
+
+  return fetch(input, init);
+}
+
 let cachedConfig;
 
 export async function getOidcConfig(env) {
@@ -41,6 +58,7 @@ export async function getOidcConfig(env) {
     env.OIDC_CLIENT_ID,
     env.OIDC_CLIENT_SECRET,
   );
+  cachedConfig[client.customFetch] = edgeOneCompatibleFetch;
 
   return cachedConfig;
 }

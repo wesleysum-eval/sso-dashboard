@@ -104,6 +104,16 @@ authorization_code_grant_failed
 The code exchange failed. Check redirect URI, client secret, code expiry, state,
 and nonce.
 
+If the message is:
+
+```text
+Failed to construct Request: only String/ArrayBuffer/ArrayBufferView/Blob/ReadableStream/FormData is allowed as the body initializer
+```
+
+EdgeOne rejected the `URLSearchParams` request body used by the OIDC client for
+the token exchange. The app installs a custom OIDC fetch wrapper that converts
+that body to a form-encoded string before calling EdgeOne's fetch runtime.
+
 ```text
 missing_tenant_claim
 ```
