@@ -8,21 +8,33 @@
 // 302-with-fixed-Location response shape — no distinguishing detail is ever
 // returned to the client (D-05, RESEARCH.md Pitfall 5).
 //
-// AUTH-03: `claims.tenant_id` (from tokens.claims(), only available AFTER
-// openid-client's internal ID-token signature/issuer/audience verification
-// inside authorizationCodeGrant) is the ONLY source ever read for the
-// tenant identity. Nothing is read from request.url, URL.searchParams,
-// headers, or the request body for this purpose anywhere in this file.
+// AUTH-03: the configured tenant claim (env.OIDC_TENANT_CLAIM, defaulting
+// to `tenant_id`) from tokens.claims(), only available AFTER openid-client's
+// internal ID-token signature/issuer/audience verification inside
+// authorizationCodeGrant, is the ONLY source ever read for the tenant
+// identity. Nothing is read from request.url, URL.searchParams, headers, or
+// the request body for this purpose anywhere in this file.
 import * as client from 'openid-client';
 import { getOidcConfig } from '../../lib/oidc-config.js';
 import { signSession } from '../../lib/session.js';
 import { serializeCookie, serializeCookieRemoval } from '../../lib/cookie-header.js';
 
-function redirectToAccessDenied() {
+function redirectToAccessDenied(env, debug = {}) {
+  const location = new URL('/access-denied.html', 'https://app.local');
+  if (env.AUTH_DEBUG_CALLBACK === 'true') {
+    Object.entries(debug).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) location.searchParams.set(key, String(value));
+    });
+  }
+
   return new Response(null, {
     status: 302,
-    headers: { Location: '/access-denied.html' },
+    headers: { Location: `${location.pathname}${location.search}` },
   });
+}
+
+function getTenantClaimName(env) {
+  return env.OIDC_TENANT_CLAIM || 'tenant_id';
 }
 
 export async function onRequestGet({ request, env }) {
@@ -39,7 +51,7 @@ export async function onRequestGet({ request, env }) {
     // the 600s max-age expired, or the user opened /api/auth/callback in a
     // different browser context than /api/auth/login was started in.
     console.log('auth callback: no oidc_txn cookie present on callback request');
-    return redirectToAccessDenied();
+    return redirectToAccessDenied(env, { reason: 'missing_oidc_txn_cookie' });
   }
 
   let code_verifier;
@@ -49,7 +61,7 @@ export async function onRequestGet({ request, env }) {
     ({ code_verifier, state, nonce } = JSON.parse(decodeURIComponent(txnCookie.value)));
   } catch {
     console.log('auth callback: oidc_txn cookie present but failed to parse');
-    return redirectToAccessDenied();
+    return redirectToAccessDenied(env, { reason: 'invalid_oidc_txn_cookie' });
   }
 
   let tokens;
@@ -65,7 +77,11 @@ export async function onRequestGet({ request, env }) {
     // (never in the HTTP response, D-05) — error name/message only, never
     // the raw code/state/tokens.
     console.log('auth callback: authorizationCodeGrant failed:', err?.name, err?.message);
-    return redirectToAccessDenied();
+    return redirectToAccessDenied(env, {
+      reason: 'authorization_code_grant_failed',
+      error: err?.name,
+      message: err?.message,
+    });
   }
 
   // Signature/issuer/audience already verified internally by
@@ -73,7 +89,8 @@ export async function onRequestGet({ request, env }) {
   // never from request.url, URL.searchParams, headers, or the request
   // body (AUTH-03).
   const claims = tokens.claims();
-  const tenantId = claims?.tenant_id;
+  const tenantClaimName = getTenantClaimName(env);
+  const tenantId = claims?.[tenantClaimName];
 
   if (typeof tenantId !== 'string' || tenantId.length === 0) {
     // Server-side-only diagnostic for Wave 0 IdP setup debugging
@@ -81,10 +98,14 @@ export async function onRequestGet({ request, env }) {
     // the client only ever sees the generic 302 to /access-denied.html
     // below, identical to every other failure branch in this file (D-05).
     console.log(
-      'auth callback: missing/invalid tenant_id claim. Expected key: tenant_id. Present claim keys:',
+      `auth callback: missing/invalid tenant claim. Expected key: ${tenantClaimName}. Present claim keys:`,
       claims ? Object.keys(claims) : [],
     );
-    return redirectToAccessDenied();
+    return redirectToAccessDenied(env, {
+      reason: 'missing_tenant_claim',
+      expected: tenantClaimName,
+      present: claims ? Object.keys(claims).join(',') : '',
+    });
   }
 
   const sessionJwt = await signSession(
