@@ -2,14 +2,25 @@ fetch('/api/status')
   .then((r) => r.json())
   .then((data) => {
     const el = document.getElementById('result');
-    const statusLine =
-      `hasConfig: ${data.hasConfig} | kvBound: ${data.kvBound} | ts: ${data.ts}`;
+    el.innerHTML = '';
 
     if (data.authenticated) {
-      el.textContent = `Logged in — tenant: ${data.tenantId} (${statusLine})`;
+      const body = document.createElement('p');
+      body.append("You're signed in as tenant ");
+      const tenantSpan = document.createElement('span');
+      tenantSpan.className = 'label';
+      tenantSpan.textContent = data.tenantId;
+      tenantSpan.title = data.tenantId;
+      body.appendChild(tenantSpan);
+      body.append('.');
+      el.appendChild(body);
     } else {
-      el.textContent = `${statusLine} — `;
+      const body = document.createElement('p');
+      body.textContent = 'Sign in with your company SSO to continue.';
+      el.appendChild(body);
+
       const loginLink = document.createElement('a');
+      loginLink.className = 'cta';
       loginLink.href = '/api/auth/login';
       loginLink.textContent = 'Log in with SSO';
       el.appendChild(loginLink);
@@ -25,7 +36,12 @@ fetch('/api/status')
     }
   })
   .catch((err) => {
-    document.getElementById('result').textContent = `Error: ${err.message}`;
+    const el = document.getElementById('result');
+    el.innerHTML = '';
+    const errEl = document.createElement('p');
+    errEl.className = 'error';
+    errEl.textContent = `Error: ${err.message}`;
+    el.appendChild(errEl);
   });
 
 // Phase 3 (DATA-01): clicking the CDN Traffic Stats card fetches the

@@ -3,15 +3,20 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Enterprise SSO Dashboard — Phase 1 Skeleton</title>
+    <title>Enterprise SSO Dashboard</title>
+    <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <h1>Deployment Foundation Live</h1>
-    <div id="result">loading...</div>
-    <div id="data-source-section" style="display: none">
-      <h2>Select a data source</h2>
-      <button id="card-cdn-traffic" type="button">CDN Traffic Stats</button>
-      <div id="data-source-result"></div>
+    <div class="page">
+      <div class="card">
+        <h1>Welcome</h1>
+        <div id="result" class="status-line">loading...</div>
+        <div id="data-source-section" class="picker-grid" style="display: none">
+          <h2>Select a data source</h2>
+          <button id="card-cdn-traffic" class="picker-card" type="button">CDN Traffic Stats</button>
+          <div id="data-source-result" class="data-result"></div>
+        </div>
+      </div>
     </div>
     <script src="/app.js"></script>
   </body>
