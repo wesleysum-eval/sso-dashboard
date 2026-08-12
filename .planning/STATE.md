@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 01
 current_phase_name: edgeone-deployment-foundation
 status: complete
-stopped_at: "Phase 1 complete: both plans done, all 4 success criteria verified live (static site, Edge Function, secrets, KV write-then-read). DEPLOY-01 marked complete in REQUIREMENTS.md and ROADMAP.md."
-last_updated: "2026-08-11T21:00:00.000Z"
+stopped_at: Completed 02-01-PLAN.md (code+deploy done; live verify pending env-var console setup)
+last_updated: "2026-08-12T00:05:02.617Z"
 last_activity: 2026-08-11
 last_activity_desc: Phase 01 Plan 02 (KV persistence) completed and verified live; documentation synced across SUMMARY, ROADMAP, REQUIREMENTS, PROJECT, STATE
 progress:
-  total_phases: 4
+  total_phases: 3
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 4
+  completed_plans: 3
 ---
 
 # Project State
@@ -32,7 +32,7 @@ Plan: 2 of 2 — both complete
 Status: Phase 01 done, all success criteria verified live
 Last activity: 2026-08-11 — Plan 01-02 (KV persistence) executed and verified; docs synced
 
-Progress: [██████████] 100% (Phase 1)
+Progress: [████████░░] 75% (Phase 1)
 
 ## Performance Metrics
 
@@ -54,6 +54,11 @@ Progress: [██████████] 100% (Phase 1)
 - Trend: -
 
 *Updated after each plan completion*
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 02 P01 | 9min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -65,6 +70,9 @@ Recent decisions affecting current work:
 - [Roadmap]: Deployment-first phase ordering — EdgeOne Pages + Functions deployment (DEPLOY-01) is Phase 1, ahead of auth/features, so every later phase is verified against the live platform rather than local dev.
 - [Roadmap]: SSO protocol (OIDC vs SAML) still deferred — to be decided at Phase 2 planning time, no domain research was done for this project.
 - [Roadmap]: Coarse granularity applied — 4 phases, vertical-slice structure (deploy → auth/tenant → data scoping → generation/save).
+- [Phase ?]: Implemented both PKCE and nonce validation in the OIDC callback (defense-in-depth per RESEARCH.md) rather than PKCE alone
+- [Phase ?]: Used bare tenant_id claim name convention (not namespaced) for tenant mapping per D-04/RESEARCH.md recommendation
+- [Phase ?]: 12-hour fixed JWT session expiry per RESEARCH.md Pitfall 4 — session-cookie lifetime, not access-token lifetime
 
 ### Pending Todos
 
@@ -76,6 +84,8 @@ None yet.
 - Constrained generation vocabulary/DSL for dashboard generation (GEN-03) needs concrete design during Phase 4 planning — currently only specified as a constraint, not a mechanism.
 
 **Resolved this session:** Plan 01-01's D3 gap (env secret unreadable on canonical deployment) was resolved when the user set the env var directly in the console and redeployed — no longer a blocker.
+
+- Plan 02-01 code complete and deployed, but live curl verification of /api/auth/login and /api/auth/callback returns HTTP 545 (not 302) because the 5 required env vars (OIDC_ISSUER_URL, OIDC_CLIENT_ID, OIDC_CLIENT_SECRET, OIDC_REDIRECT_URI, SESSION_SIGNING_KEY) have not yet been set via EdgeOne Makers Console UI. Needs human: set env vars in console + a test IdP with tenant_id claim configured, then git push to redeploy.
 
 ## Deferred Items
 
@@ -90,6 +100,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-11
-Stopped at: Phase 1 fully complete — all 4 success criteria (static site, Edge Function, secrets, KV write-then-read) verified live on https://sso-dashboard-0eso53cx.edgeone.dev/. DEPLOY-01 requirement marked complete. Next: plan Phase 2 (SSO Authentication & Tenant Mapping) — CONTEXT.md and RESEARCH.md already exist for Phase 2, ready for /gsd-plan-phase 2.
+Last session: 2026-08-12T00:05:02.611Z
+Stopped at: Completed 02-01-PLAN.md (code+deploy done; live verify pending env-var console setup)
 Resume file: None

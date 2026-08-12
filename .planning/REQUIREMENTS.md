@@ -11,9 +11,9 @@
 
 ### Authentication
 
-- [ ] **AUTH-01**: User can log in via their company's enterprise SSO (protocol — OIDC vs SAML — decided at phase-planning time)
+- [x] **AUTH-01**: User can log in via their company's enterprise SSO (protocol — OIDC vs SAML — decided at phase-planning time)
 - [ ] **AUTH-02**: User's session persists across browser refresh without re-login
-- [ ] **AUTH-03**: SSO identity resolves server-side to exactly one EdgeOne account (tenant mapping); this mapping cannot be influenced or overridden by client input
+- [x] **AUTH-03**: SSO identity resolves server-side to exactly one EdgeOne account (tenant mapping); this mapping cannot be influenced or overridden by client input
 
 ### Data Source Selection
 
@@ -72,9 +72,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | DEPLOY-01 | Phase 1 | Complete |
-| AUTH-01 | Phase 2 | Pending |
+| AUTH-01 | Phase 2 | Complete |
 | AUTH-02 | Phase 2 | Pending |
-| AUTH-03 | Phase 2 | Pending |
+| AUTH-03 | Phase 2 | Complete |
 | DATA-01 | Phase 3 | Pending |
 | DATA-02 | Phase 3 | Pending |
 | DATA-03 | Phase 3 | Pending |
@@ -85,6 +85,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SAVE-01 | Phase 4 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 12 total
 - Mapped to phases: 12/12 ✓
 - Unmapped: 0 ✓
