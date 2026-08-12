@@ -13,6 +13,7 @@
 // credentials on redirect).
 import * as client from 'openid-client';
 import { getOidcConfig } from '../../lib/oidc-config.js';
+import { serializeCookie } from '../../lib/cookie-header.js';
 
 export async function onRequestGet({ request, env }) {
   const config = await getOidcConfig(env);
@@ -33,24 +34,20 @@ export async function onRequestGet({ request, env }) {
 
   const redirectTo = client.buildAuthorizationUrl(config, parameters);
 
-  const cookies = new Cookies();
-  cookies.set(
-    'oidc_txn',
-    JSON.stringify({ code_verifier, state, nonce }),
-    {
-      httponly: true,
-      secure: true,
-      samesite: 'Lax',
-      max_age: '600',
-      path: '/',
-    },
-  );
-
   const response = new Response(null, {
     status: 302,
     headers: { Location: redirectTo.href },
   });
-  response.setCookies(cookies);
+  response.headers.append(
+    'Set-Cookie',
+    serializeCookie('oidc_txn', encodeURIComponent(JSON.stringify({ code_verifier, state, nonce })), {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'Lax',
+      maxAge: 600,
+      path: '/',
+    }),
+  );
 
   return response;
 }

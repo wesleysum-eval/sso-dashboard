@@ -16,6 +16,7 @@
 import * as client from 'openid-client';
 import { getOidcConfig } from '../../lib/oidc-config.js';
 import { signSession } from '../../lib/session.js';
+import { serializeCookie, serializeCookieRemoval } from '../../lib/cookie-header.js';
 
 function redirectToAccessDenied() {
   return new Response(null, {
@@ -35,7 +36,7 @@ export async function onRequestGet({ request, env }) {
   let state;
   let nonce;
   try {
-    ({ code_verifier, state, nonce } = JSON.parse(txnCookie.value));
+    ({ code_verifier, state, nonce } = JSON.parse(decodeURIComponent(txnCookie.value)));
   } catch {
     return redirectToAccessDenied();
   }
@@ -77,21 +78,24 @@ export async function onRequestGet({ request, env }) {
     env,
   );
 
-  const outCookies = new Cookies();
-  outCookies.set('session', sessionJwt, {
-    httponly: true,
-    secure: true,
-    samesite: 'Lax',
-    max_age: '43200',
-    path: '/',
-  });
-  outCookies.remove('oidc_txn', { path: '/' });
-
   const response = new Response(null, {
     status: 302,
     headers: { Location: '/' },
   });
-  response.setCookies(outCookies);
+  response.headers.append(
+    'Set-Cookie',
+    serializeCookie('session', sessionJwt, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'Lax',
+      maxAge: 43200,
+      path: '/',
+    }),
+  );
+  response.headers.append(
+    'Set-Cookie',
+    serializeCookieRemoval('oidc_txn', { path: '/' }),
+  );
 
   return response;
 }
