@@ -14,6 +14,22 @@
 // behavior is never assumed or depended upon by any verification step.
 import * as client from 'openid-client';
 
+// EdgeOne's Edge Function runtime does not implement the standard
+// `AbortSignal.timeout(ms)` static method (confirmed via local
+// `edgeone makers dev` — TypeError: AbortSignal.timeout is not a function),
+// which `openid-client`/`oauth4webapi` call internally for fetch timeouts
+// during discovery and token exchange. Polyfill it with the standard,
+// spec-equivalent behavior (an AbortSignal that fires after `ms`) before
+// getOidcConfig() is ever called. Guarded so it's a no-op on runtimes that
+// already provide it natively.
+if (typeof AbortSignal.timeout !== 'function') {
+  AbortSignal.timeout = function timeout(ms) {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(new DOMException('TimeoutError', 'TimeoutError')), ms);
+    return controller.signal;
+  };
+}
+
 let cachedConfig;
 
 export async function getOidcConfig(env) {
