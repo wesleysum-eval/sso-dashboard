@@ -5,8 +5,8 @@ milestone_name: milestone
 current_phase: 01
 current_phase_name: edgeone-deployment-foundation
 status: complete
-stopped_at: Completed 02-01-PLAN.md (code+deploy done; live verify pending env-var console setup)
-last_updated: "2026-08-12T00:05:02.617Z"
+stopped_at: Completed 02-01-PLAN.md (code, deploy, and live verification all pass; two edge-runtime bugs found and fixed)
+last_updated: "2026-08-12T01:05:00.000Z"
 last_activity: 2026-08-11
 last_activity_desc: Phase 01 Plan 02 (KV persistence) completed and verified live; documentation synced across SUMMARY, ROADMAP, REQUIREMENTS, PROJECT, STATE
 progress:
@@ -85,7 +85,7 @@ None yet.
 
 **Resolved this session:** Plan 01-01's D3 gap (env secret unreadable on canonical deployment) was resolved when the user set the env var directly in the console and redeployed — no longer a blocker.
 
-- Plan 02-01 code complete and deployed, but live curl verification of /api/auth/login and /api/auth/callback returns HTTP 545 (not 302) because the 5 required env vars (OIDC_ISSUER_URL, OIDC_CLIENT_ID, OIDC_CLIENT_SECRET, OIDC_REDIRECT_URI, SESSION_SIGNING_KEY) have not yet been set via EdgeOne Makers Console UI. Needs human: set env vars in console + a test IdP with tenant_id claim configured, then git push to redeploy.
+**Resolved this session:** Plan 02-01's live verification gap is closed. User set the 5 required env vars in EdgeOne Makers Console and provisioned a real test IdP (Auth0, with a `tenant_id` claim Action). Two genuine EdgeOne edge-runtime bugs surfaced once the code actually reached `openid-client` internals — (1) `AbortSignal.timeout` not implemented on the runtime, (2) `response.setCookies()` deprecated in favor of `Headers`-based `Set-Cookie` — both root-caused via local `edgeone makers dev` reproduction, fixed, and confirmed live (`/api/auth/login` → real 302 to Auth0 with correct cookie; negative-test spoofed `tenant_id` → 302 to `/access-denied.html`). Windows-ledger entries #1/#2 marked fixed.
 
 ## Deferred Items
 
@@ -100,6 +100,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-12T00:05:02.611Z
-Stopped at: Completed 02-01-PLAN.md (code+deploy done; live verify pending env-var console setup)
+Last session: 2026-08-12T01:05:00.000Z
+Stopped at: Completed 02-01-PLAN.md (code, deploy, and live verification all pass); starting Plan 02-02 (Wave 2)
 Resume file: None

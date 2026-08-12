@@ -85,10 +85,10 @@ coverage:
     requirement: "AUTH-01"
     verification:
       - kind: integration
-        ref: "curl -sf -o /dev/null -w '%{http_code}' https://sso-dashboard-0eso53cx.edgeone.dev/api/auth/login -> 545 (env vars OIDC_ISSUER_URL/OIDC_CLIENT_ID/OIDC_CLIENT_SECRET/OIDC_REDIRECT_URI/SESSION_SIGNING_KEY not yet set via EdgeOne Makers Console; precondition unmet)"
-        status: fail
-    human_judgment: true
-    rationale: "The plan's Task 1 <precondition> (5 env vars set via EdgeOne Makers Console + redeploy) is not yet satisfied. Live curl against the deployed /api/auth/login returns HTTP 545 'Error return from script' — the expected failure mode when env.OIDC_ISSUER_URL is undefined and new URL(undefined) throws inside getOidcConfig(). This is NOT a code defect: the code path, redeploy mechanism, and routing all work correctly (confirmed via the sibling access-denied.html static asset returning 200 immediately after the same redeploy). A human must set the 5 env vars in the EdgeOne Makers Console (Project Settings -> Environment Management) on the GitHub-connected project and push again to trigger a redeploy before this deliverable can be verified live end-to-end."
+        ref: "curl -sD - https://sso-dashboard-0eso53cx.edgeone.dev/api/auth/login -> HTTP 302, Location: https://dev-0husse51ireasr6q.us.auth0.com/authorize?...&client_id=qfi8qkMZbzG0yAJEJrJpb6nqREZJMrlF&response_type=code, Set-Cookie: oidc_txn=...; Max-Age=600; Path=/; SameSite=Lax; Secure; HttpOnly"
+        status: pass
+    human_judgment: false
+    rationale: "Env vars were set via EdgeOne Makers Console and a real test IdP (Auth0) was provisioned with a tenant_id claim Action. Two real platform-runtime bugs were found and fixed before this went green (see Issues Encountered / Update below): AbortSignal.timeout missing on the EdgeOne edge runtime, and response.setCookies() being deprecated in favor of Headers-based Set-Cookie. Confirmed live via curl -D - after both fixes were deployed."
   - id: D5
     description: "access-denied.html: single generic static page, no dynamic content, no tenant/claim/config leakage (D-05)"
     requirement: "AUTH-03"
@@ -102,13 +102,13 @@ coverage:
     requirement: "AUTH-03"
     verification:
       - kind: integration
-        ref: "curl 'https://sso-dashboard-0eso53cx.edgeone.dev/api/auth/callback?code=invalid&state=invalid&tenant_id=attacker-supplied-tenant' -> 545 (same missing-env-var precondition as D4; code path itself confirmed correct by code review below)"
-        status: fail
+        ref: "curl 'https://sso-dashboard-0eso53cx.edgeone.dev/api/auth/callback?code=invalid&state=invalid&tenant_id=attacker-supplied-tenant' -> HTTP 302, Location: /access-denied.html (spoofed tenant_id query param has zero effect, confirmed live post-fix)"
+        status: pass
       - kind: manual_procedural
         ref: "code review of edge-functions/api/auth/callback.js: claims.tenant_id (from tokens.claims(), post-verification) is the only source ever assigned to the session's tenant claim; no request.url/searchParams/header value is read for this purpose anywhere in login.js/callback.js/session.js"
         status: pass
-    human_judgment: true
-    rationale: "Same root cause as D4 — the live 302-vs-access-denied negative test cannot execute meaningfully while getOidcConfig(env) throws before reaching the tenant-claim-spoofing check at all (both the legitimate flow and the attack simulation hit the same undefined-env-var wall). The code-level guarantee (claims.tenant_id-only sourcing) is independently verified via code review and holds regardless of live env-var state, but the end-to-end negative-test curl requires a human to complete the env var setup first."
+    human_judgment: false
+    rationale: "Live negative test now confirmed passing after the AbortSignal.timeout and setCookies fixes were deployed. Code-level guarantee independently verified by code review as well."
 
 # Metrics
 duration: 9min
@@ -118,7 +118,7 @@ status: complete
 
 # Phase 2 Plan 1: OIDC Tracer Slice + Tenant Claim Validation Summary
 
-**Full OIDC authorization-code+PKCE+nonce flow (openid-client + jose) wired end-to-end with server-side-only tenant claim resolution and a generic no-leak access-denied page — code complete and deployed, live verification pending EdgeOne Makers Console env-var setup.**
+**Full OIDC authorization-code+PKCE+nonce flow (openid-client + jose) wired end-to-end with server-side-only tenant claim resolution and a generic no-leak access-denied page — code complete, deployed, and fully verified live against a real test IdP (Auth0).**
 
 ## Performance
 
@@ -164,45 +164,41 @@ None — plan executed exactly as written. Both tasks followed their `<action>` 
 
 ## Issues Encountered
 
-**Live verification cannot yet confirm the `<verify>` blocks pass, because the plan's `<precondition>` on Task 1 (5 env vars set via EdgeOne Makers Console + redeploy) is not yet satisfied.**
+**Two real EdgeOne edge-runtime platform bugs were found and fixed during live verification — neither was an env-var/config issue.**
 
-Both `curl -sf -o /dev/null -w "%{http_code}" .../api/auth/login` and the Task 2 negative-test curl against `/api/auth/callback` returned **HTTP 545 "Error return from script"** — not the expected `302`. This is the expected failure mode when `env.OIDC_ISSUER_URL` is `undefined`: `getOidcConfig(env)` calls `new URL(env.OIDC_ISSUER_URL)`, which throws a `TypeError` on `undefined` input, and the Edge Function runtime surfaces uncaught exceptions as HTTP 545.
+After the human set the 5 required env vars in EdgeOne Makers Console and provisioned a real test IdP (Auth0, with a `tenant_id` custom claim Action attached to the Login flow), live curl against `/api/auth/login` still failed. Root-caused via local reproduction with `edgeone makers dev`:
 
-**This is not a code defect** — confirmed by three independent signals:
-1. The redeploy itself completed successfully: `access-denied.html` (a plain static asset added in the same push as `callback.js`) returned HTTP 200 with byte-identical bodies across two different query strings, immediately after the same `git push`.
-2. `/api/status` (pre-existing, Phase 1) continued returning correct live JSON (`hasConfig: true, kvBound: true`) throughout, confirming the deployment and other Edge Functions are healthy.
-3. Code review of `oidc-config.js`, `login.js`, and `callback.js` confirms the logic is correct and matches the plan's `<action>` spec exactly — the only unmet dependency is the 5 env vars, which per the plan and Phase 1's documented platform limitation must be set via the EdgeOne Makers Console UI (not CLI).
+1. **`TypeError: AbortSignal.timeout is not a function`** — EdgeOne's Edge Function runtime does not implement the standard `AbortSignal.timeout(ms)` static method, which `openid-client`/`oauth4webapi` call internally for fetch timeouts during OIDC discovery and token exchange. Node (and browsers) have this; EdgeOne's edge runtime does not.
+   - **Fix:** added a guarded polyfill in `edge-functions/lib/oidc-config.js` (no-op if the runtime already provides it), committed as `8ac1c61`.
+2. **`TypeError: Failed to execute 'setCookies' on 'Response': it is deprecated, please consider using 'Headers' for replacement.`** — the documented EdgeOne Cookies API write-side method (`response.setCookies(cookies)`, per `edgeone.ai/document/52685`, which RESEARCH.md cited and quoted verbatim) is deprecated on the actual runtime in use.
+   - **Fix:** added `edge-functions/lib/cookie-header.js` (standard `Set-Cookie` string serialization) and switched `login.js`/`callback.js` to `response.headers.append('Set-Cookie', ...)`. Read-side (`new Cookies(request.headers.get('Cookie'))`) was unaffected and unchanged. Committed as `c7799d1`.
 
-**No secrets were fabricated, hardcoded, or worked around.** Per the task instructions, this is reported as a pending precondition, not a plan failure.
+Both fixes were verified locally via `edgeone makers dev` before pushing, then re-verified live:
+```
+curl -sD - https://sso-dashboard-0eso53cx.edgeone.dev/api/auth/login
+# HTTP/1.1 302 Found
+# Location: https://dev-0husse51ireasr6q.us.auth0.com/authorize?...&client_id=...&response_type=code
+# Set-Cookie: oidc_txn=...; Max-Age=600; Path=/; SameSite=Lax; Secure; HttpOnly
+
+curl -sD - "https://sso-dashboard-0eso53cx.edgeone.dev/api/auth/callback?code=invalid&state=invalid&tenant_id=attacker-supplied-tenant"
+# HTTP/1.1 302 Found
+# Location: /access-denied.html
+```
+
+Both plan `<verify>` blocks now pass live, end-to-end. No secrets were fabricated, hardcoded, or worked around at any point — both bugs were genuine runtime-compatibility gaps in third-party OIDC libraries against EdgeOne's specific edge runtime, not planning or config errors.
+
+**Earlier root-cause diagnosis (superseded by the above, kept for the record):** initial live 545 errors were correctly attributed to missing env vars (`getOidcConfig` throwing on `new URL(undefined)`), confirmed via the sibling `access-denied.html` static-asset check and `/api/status` staying healthy throughout. That diagnosis was accurate for the *first* redeploy attempt; the two runtime bugs above were only exposed once the env vars were actually set and the code path reached `openid-client`'s internals.
 
 ## User Setup Required
 
-**Before Task 1's and Task 2's live `<verify>` commands can pass, a human must:**
-
-1. Go to **EdgeOne Makers Console → Project Settings → Environment Management → Environment Variable**, on the GitHub-connected project serving `https://sso-dashboard-0eso53cx.edgeone.dev/` (project ID `makers-sc1i760uu4pv` per `.edgeone/project.json`) — NOT the separate CLI-linked project (confirmed platform limitation, Phase 1 01-01-SUMMARY.md).
-2. Set these 5 environment variables:
-   - `OIDC_ISSUER_URL` — from a test IdP (Auth0/Okta/Keycloak free tier) — discovery/issuer base URL
-   - `OIDC_CLIENT_ID` — test IdP application client ID
-   - `OIDC_CLIENT_SECRET` — test IdP application client secret
-   - `OIDC_REDIRECT_URI` — `https://sso-dashboard-0eso53cx.edgeone.dev/api/auth/callback` — must be registered in the test IdP's allowed redirect URIs list
-   - `SESSION_SIGNING_KEY` — a random 32+ byte secret, e.g. `openssl rand -hex 32`
-3. Create a test OIDC application with a test user in the chosen IdP, configuring a custom claim named `tenant_id` on the test user's issued ID token (per D-04/RESEARCH.md convention).
-4. Trigger a redeploy: `git push` to `origin/main` (a no-op commit is sufficient if no code changes are pending — env var changes only take effect on the *next* deployment after being saved, per the console's own note and Phase 1's finding).
-5. Re-run the plan's automated verify commands:
-   ```
-   curl -sf -o /dev/null -w "%{http_code}" https://sso-dashboard-0eso53cx.edgeone.dev/api/auth/login
-   # expect 302, with Location starting with the configured OIDC_ISSUER_URL host
-   curl -sf -o /dev/null -w "%{http_code}" "https://sso-dashboard-0eso53cx.edgeone.dev/api/auth/callback?code=invalid&state=invalid&tenant_id=attacker-supplied-tenant"
-   # expect 302, Location: /access-denied.html
-   ```
-6. The full browser round trip through the real test IdP is deferred to Plan 02-02's live checkpoint, per this plan's `<done>` criteria.
+None remaining for this plan — env vars are set, test IdP is provisioned, both platform bugs are fixed and verified live. See `02-02-PLAN.md`'s own checkpoint for the full browser round-trip verification (AUTH-01/02/03 end-to-end).
 
 ## Next Phase Readiness
 
-- All code for the tracer slice and tenant-claim validation is written, committed, and deployed. The only remaining gap before AUTH-01/AUTH-03 can be marked **validated** (vs. merely **complete**) is the human console step above.
-- Plan 02-02 (session-persistence checks + live IdP checkpoint) depends on this plan's code being correct — code review confirms it is, but Plan 02-02's own live verification will also be blocked on the same env vars until they're set.
+- All code for the tracer slice and tenant-claim validation is written, committed, deployed, and **fully verified live** — AUTH-01 and AUTH-03 are both validated, not merely complete.
+- Plan 02-02 (session-persistence checks + live IdP checkpoint) can now proceed without any blocking precondition from this plan.
 - `verifySession()` is exported and ready for any future protected route (Phase 3+) to import directly from `edge-functions/lib/session.js`.
-- Requirements AUTH-01 and AUTH-03 are marked complete in REQUIREMENTS.md per this plan's frontmatter — but per the coverage table above (D4, D6), full live-deployment validation is still pending human action, not fully closed out.
+- Two reusable platform-compatibility fixes are now in place for any future Edge Function code that needs them: the `AbortSignal.timeout` polyfill pattern (`oidc-config.js`) and the `Headers`-based Set-Cookie helper (`cookie-header.js`) — future auth-adjacent code should reuse `cookie-header.js` rather than `response.setCookies()`.
 
 ---
 *Phase: 02-sso-authentication-tenant-mapping*
@@ -210,4 +206,4 @@ Both `curl -sf -o /dev/null -w "%{http_code}" .../api/auth/login` and the Task 2
 
 ## Self-Check: PASSED
 
-All created files verified present on disk (package.json, package-lock.json, edge-functions/lib/oidc-config.js, edge-functions/lib/session.js, edge-functions/api/auth/login.js, edge-functions/api/auth/callback.js, access-denied.html, this SUMMARY.md). Both task commits (`68c8a62`, `cb5a17a`) verified present in git log.
+All created files verified present on disk (package.json, package-lock.json, edge-functions/lib/oidc-config.js, edge-functions/lib/session.js, edge-functions/lib/cookie-header.js, edge-functions/api/auth/login.js, edge-functions/api/auth/callback.js, access-denied.html, this SUMMARY.md). All commits (`68c8a62`, `cb5a17a`, `8ac1c61`, `c7799d1`) verified present in git log. Live verification confirmed via curl against the canonical deployed URL.
