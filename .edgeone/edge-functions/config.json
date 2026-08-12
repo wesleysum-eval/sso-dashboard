@@ -1,0 +1,39 @@
+{
+  "routes": [
+    {
+      "src": "^/api/auth/callback$",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "src": "^/api/auth/login$",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "src": "^/api/data/cdn-traffic$",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "src": "^/api/kv-check$"
+    },
+    {
+      "src": "^/api/status$",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "src": "^/api/tenant/connect$",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    }
+  ],
+  "middleware": null
+}
