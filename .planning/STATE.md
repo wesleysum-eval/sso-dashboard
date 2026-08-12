@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 03
-current_phase_name: tenant-scoped-data-source-selection
+current_phase: 04
+current_phase_name: prompt-driven-dashboard-generation-save
 status: executing
-stopped_at: Live Auth0 SSO callback debugging in progress; configurable tenant claim and EdgeOne token-fetch compatibility shim pushed to main; Phase 3 Plan 01 Task 1 code complete pending credentials checkpoint; Phase 4 context ready for planning
-last_updated: "2026-08-12T15:55:00.000-07:00"
+stopped_at: Phase 2 SSO login verified live by user. Phase 3 Plan 02 (Security Events route) still not built. Phase 4 Plan 01 (generation tracer) code-complete on local commits, MAKERS_MODELS_KEY confirmed set in Makers Console by user; blocked on git push + live human-check (real prompt -> real LLM call -> real teo data).
+last_updated: "2026-08-12T16:55:00.000-07:00"
 last_activity: 2026-08-12
-last_activity_desc: Live Auth0 SSO showed "Successful login" but the app still denied the callback. Added opt-in `AUTH_DEBUG_CALLBACK` browser-visible diagnostics for environments where EdgeOne logs are unavailable, made tenant claim extraction configurable via `OIDC_TENANT_CLAIM` with `tenant_id` as the default, and fixed an EdgeOne runtime incompatibility where fetch rejected the `URLSearchParams` token-exchange body used by `openid-client`/`oauth4webapi`.
+last_activity_desc: Fixed an uncommitted xfetch->fetch typo in app.js (reverted to match HEAD). Set MAKERS_MODELS_KEY in EdgeOne Makers Console (CLI env set/pull appeared to silently no-op, so it was set manually by the user). Executed Phase 4 Plan 01: built generation-schema.js (closed widget vocabulary), metric-lookup.js (Action/Version lookup table), generate.js (session-gated LLM generation route), and extended index.html/app.js with a prompt panel + four-widget-type Chart.js/HTML rendering. Two local commits (3bcc7b4, 294e99f) plus the phase-plan docs commit (8bc89db) — none pushed yet.
 progress:
   total_phases: 4
   completed_phases: 1
@@ -27,12 +27,12 @@ See: .planning/PROJECT.md (updated 2026-08-10)
 
 ## Current Position
 
-Phase: 03 (tenant-scoped-data-source-selection) — EXECUTING
-Plan: 1 of 2 — Task 1 (code) complete, Task 2 (human-verify checkpoint) blocked on real Tencent Cloud credentials
-Status: Phase 2 fully code-complete (one human checkpoint outstanding); Phase 3 tracer code complete (one human checkpoint outstanding); Phase 4 context gathered, ready to plan
-Last activity: 2026-08-12 — Executed Phase 3 Plan 01 Task 1; gathered Phase 4 context
+Phase: 04 (prompt-driven-dashboard-generation-save) — EXECUTING
+Plan: 1 of 2 — code-complete (Tasks 2-3), Task 1 (MAKERS_MODELS_KEY) confirmed set by user in console, Task 2's live human-check blocked on git push + redeploy
+Status: Phase 2 SSO login verified live by user (refresh/negative-test not yet re-confirmed); Phase 3 Plan 01 code-complete (checkpoint outstanding), Plan 02 (Security Events) NOT YET BUILT; Phase 4 Plan 01 code-complete (checkpoint outstanding), Plan 02 (re-prompt/save) not started
+Last activity: 2026-08-12 — Fixed app.js typo; set MAKERS_MODELS_KEY; executed Phase 4 Plan 01 (generation-schema.js, metric-lookup.js, generate.js, prompt UI)
 
-Progress: [██████░░░░] ~60% (2 of 4 phases with live-verified or code-complete work; 2 human checkpoints outstanding)
+Progress: [███████░░░] ~70% (Phase 4 Plan 01 code landed; 3 human checkpoints now outstanding across Phases 2-4; Phase 3 Plan 02 still unbuilt)
 
 ## Performance Metrics
 
@@ -80,6 +80,9 @@ Recent decisions affecting current work:
 - [Phase 3]: KV-backed tenant_id -> EdgeOne account mapping, read-only this phase (`getTenantAccount()` in tenant-mapping.js), population deferred to onboarding.
 - [Phase 4, auto]: Constrained-generation DSL for GEN-03 designed — fixed 4-type component vocabulary (line-chart/bar-chart/stat-card/table) + fixed query-shape enums (metric/interval/timeRange), server validates and maps to real API params via a lookup table; LLM output is never executed as code and never reaches the outbound API call directly. See 04-CONTEXT.md D-01/D-02/D-03.
 - [Phase 4, auto]: Saved dashboards persist in the existing `my_kv` namespace under `dashboard:<tenant_id>:<dashboard_id>`, tenant_id always re-derived from verifySession() (never client input). See 04-CONTEXT.md D-05/D-06.
+- [Phase 4 Plan 01]: Omitted `response_format` entirely from the AI Gateway request body — JSON-mode support is unconfirmed/undocumented on this gateway; relies on prompt-engineered JSON-only instructions plus mandatory server-side `validateWidget()` as the sole safety backstop.
+- [Phase 4 Plan 01]: Per-widget partial-success validation and per-widget teo-fetch-failure isolation — one invalid/failed widget never discards sibling widgets in the same generated dashboard.
+- [Phase 4 Plan 01]: Implemented Phase 3's D-04 `?source=` URL passthrough client-side in app.js — this had been specified in 03-CONTEXT.md but never actually wired by Plan 03-01/03-02.
 
 ### Pending Todos
 
@@ -91,9 +94,11 @@ None yet.
 - **[RESOLVED — was flagged, now designed]** Constrained generation vocabulary/DSL for dashboard generation (GEN-03) — concrete design now exists in 04-CONTEXT.md D-01/D-02/D-03 (closed enums, server-side validation, no LLM string ever reaches the outbound API call). Ready for Phase 4 planning to consume.
 - SSO protocol choice (OIDC vs SAML) — resolved in Phase 2 (OIDC only, SAML excluded), no longer a blocker.
 
-**Outstanding human checkpoints (both are blocking, both require credentials/actions only the human can provide):**
-1. **Phase 2 Plan 02 Task 2** — live browser OIDC round-trip (login → IdP → return logged-in; refresh persists session; spoofed `tenant_id` query param has zero effect). Latest live blocker was `authorization_code_grant_failed` caused by EdgeOne rejecting a `URLSearchParams` token-exchange body; fixed in `edge-functions/lib/oidc-config.js` and pushed to `main`. User needs to redeploy, keep `AUTH_DEBUG_CALLBACK=true` only while retesting, and re-run the checkpoint walkthrough in `.planning/phases/02-sso-authentication-tenant-mapping/02-02-PLAN.md` Task 2 `<how-to-verify>`.
-2. **Phase 3 Plan 01 Task 2** — requires: (a) a Tencent Cloud API SecretId/SecretKey pair with `teo` read permissions, (b) a real EdgeOne Zone ID, (c) one seeded KV record (`tenant:<tenant_id>` → `{zoneId, secretId, secretKey}`) matching the Phase 2 test IdP's actual tenant (now `global.tencent.com` per the Pitfall 6 fix), (d) already pushed and live as of the last push. See `.planning/phases/03-tenant-scoped-data-source-selection/03-01-PLAN.md` Task 2 `<how-to-verify>` and `user_setup` frontmatter block.
+**Outstanding human checkpoints (all blocking, all require credentials/actions only the human can provide):**
+1. **Phase 2 Plan 02 Task 2** — live browser OIDC round-trip (login → IdP → return logged-in; refresh persists session; spoofed `tenant_id` query param has zero effect). User confirmed live login now works. Still needs explicit re-confirmation of: refresh persists session with no re-auth, and `/?tenant_id=some-other-tenant` has zero effect. See `.planning/phases/02-sso-authentication-tenant-mapping/02-02-PLAN.md` Task 2 `<how-to-verify>`.
+2. **Phase 3 Plan 01 Task 2** — requires: (a) a Tencent Cloud API SecretId/SecretKey pair with `teo` read permissions, (b) a real EdgeOne Zone ID, (c) one seeded KV record (`tenant:<tenant_id>` → `{zoneId, secretId, secretKey}`) matching the Phase 2 test IdP's actual tenant. See `.planning/phases/03-tenant-scoped-data-source-selection/03-01-PLAN.md` Task 2 `<how-to-verify>` and `user_setup` frontmatter block.
+3. **Phase 3 Plan 02 — NOT YET BUILT.** `edge-functions/api/data/security-events.js` does not exist. Must be executed before DATA-02/DATA-03's full-picker + negative-test checkpoint can even be attempted. See `.planning/phases/03-tenant-scoped-data-source-selection/03-02-PLAN.md`.
+4. **Phase 4 Plan 01 Task 1 + Task 2** — `MAKERS_MODELS_KEY` was confirmed set manually by the user in EdgeOne Makers Console (the CLI's `env set`/`env pull` appeared to silently no-op — did not actually update local `.env` or show any output, unverified whether it persisted server-side via the CLI path). Code for the full generation pipeline (`generate.js`, `generation-schema.js`, `metric-lookup.js`, prompt UI) is committed locally (`3bcc7b4`, `294e99f`) but **not pushed** — `git push origin main` is required before any live verification, including confirming the deployed Edge Function can actually read `env.MAKERS_MODELS_KEY`. See `.planning/phases/04-prompt-driven-dashboard-generation-save/04-01-PLAN.md` Task 2 `<human-check>` (includes a required prompt-injection negative test).
 
 **[NEW] Live gotcha found and fixed — Auth0 social-login users have no `user_metadata` by default.** The test user was a Google OAuth identity (`google-oauth2|...`); Auth0 never populates `user_metadata` for social connections, so the Post-Login Action's `event.user.user_metadata.tenant_id` read silently resolved to nothing, sending every login through the generic access-denied page even though the app's OIDC/session code was correct. Fixed by updating the Action to fall back to `event.user.idp_tenant_domain` (already populated for this Google Workspace user, resolving to `global.tencent.com`). Documented as `02-RESEARCH.md` Pitfall 6 for future onboarding reference — production customers using database-connection IdPs won't hit this path, but any future social-login test users will.
 
@@ -116,15 +121,14 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-12T03:15:00.000Z
-Stopped at: UI-SPEC implemented, reconciled with user's own page-structure rebuild, and live; Auth0 tenant-claim gap fixed at the Action level; Phase 3 credentials checkpoint still outstanding
-Resume file: .planning/phases/02-sso-authentication-tenant-mapping/02-02-SUMMARY.md, .planning/phases/03-tenant-scoped-data-source-selection/03-01-SUMMARY.md, .planning/phases/04-prompt-driven-dashboard-generation-save/04-CONTEXT.md
+Last session: 2026-08-12T16:55:00.000Z
+Stopped at: Phase 4 Plan 01 code-complete (generation pipeline, closed-vocabulary validation, four-widget rendering) on local commits, not pushed; MAKERS_MODELS_KEY confirmed set in Makers Console; Phase 3 Plan 02 (Security Events) still not built
+Resume file: .planning/phases/03-tenant-scoped-data-source-selection/03-01-SUMMARY.md, .planning/phases/04-prompt-driven-dashboard-generation-save/04-01-SUMMARY.md, .planning/phases/04-prompt-driven-dashboard-generation-save/04-02-PLAN.md
 
 **Next steps for the user:**
-1. Redeploy latest `main`, keep `AUTH_DEBUG_CALLBACK=true` only during the next SSO attempt, and confirm the previous `authorization_code_grant_failed` body-initializer error is gone.
-2. If the next denial is `missing_tenant_claim`, set `OIDC_TENANT_CLAIM` to the exact Auth0 ID-token claim key shown by the debug page, then redeploy and retry.
-3. Once login succeeds, turn `AUTH_DEBUG_CALLBACK=false`, redeploy, and complete Phase 2's remaining checkpoint steps (refresh persists session; spoofed `tenant_id` query param has no effect).
-4. Resolve the Phase 3 checkpoint (Tencent Cloud credentials + KV seed record).
-5. Decide the Phase 4 LLM provider/API key question.
-6. Run `/gsd-plan-phase 4` to turn `04-CONTEXT.md` into an executable PLAN.md.
-7. Continue with `03-02-PLAN.md` (Security Events route) once Plan 01's checkpoint is approved.
+1. `git push origin main` to deploy Phase 4 Plan 01's generation pipeline (`/api/generate`) and confirm `MAKERS_MODELS_KEY` is actually readable by the live Edge Function.
+2. Complete Phase 4 Plan 01 Task 2's live human-check: log in, select CDN Traffic Stats, prompt "Show me traffic trends over the last 7 days", confirm a real widget renders — then attempt the prompt-injection test and confirm zero out-of-vocabulary widgets appear.
+3. Complete Phase 4 Plan 01 Task 3's live human-check: confirm long-title ellipsis truncation and EdgeOne-blue chart colors on a real generated dashboard.
+4. Resolve Phase 2's remaining checkpoint (refresh persists session; spoofed `tenant_id` has no effect) and Phase 3 Plan 01's checkpoint (Tencent Cloud credentials + KV seed record), if not already done.
+5. Build Phase 3 Plan 02 (Security Events route) — currently unbuilt; run `/gsd-execute-phase 3` targeting the remaining plan, or explicitly defer if Phase 4 is prioritized first.
+6. Once Plan 04-01's checkpoints pass, run `/gsd-execute-phase 4` again (or resume) to execute `04-02-PLAN.md` (re-prompt/save/retrieve).
