@@ -2,6 +2,7 @@
   "name": "enterprise-sso-dashboard",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "description": "Enterprise SSO Dashboard Builder — EdgeOne Makers app",
   "dependencies": {
     "openid-client": "^6.8.5",

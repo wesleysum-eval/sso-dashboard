@@ -49,7 +49,7 @@ export async function onRequestGet({ request, env }) {
 
   // Only source of ZoneId/credentials in this file — never a query
   // parameter, header, or body field (DATA-03's core guarantee).
-  const account = await getTenantAccount(payload.tenant_id);
+  const account = await getTenantAccount(payload.tenant_id, env);
   if (!account) {
     return noDataAvailable(); // D-05: no mapping is a generic no-data state, not a distinct error
   }
