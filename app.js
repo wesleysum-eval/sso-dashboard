@@ -151,9 +151,14 @@ if (cdnTrafficCard) {
       .then((data) => {
         if (data.available) {
           resultEl.textContent = '';
-          const pre = document.createElement('pre');
-          pre.textContent = JSON.stringify(data.data, null, 2);
-          resultEl.appendChild(pre);
+          // Reuse the same widget-card renderer as the prompt-driven
+          // generate path (renderChartWidget -> extractSeries) rather than
+          // dumping raw JSON — same real teo response shape, same fix.
+          const card = renderChartWidget(
+            { title: 'Outbound Traffic (last 24h)', metric: 'l7Flow_outFlux', data: data.data },
+            'line',
+          );
+          resultEl.appendChild(card);
         } else {
           resultEl.textContent = 'No data available';
         }
