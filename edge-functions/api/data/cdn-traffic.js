@@ -24,11 +24,18 @@
 // KV read or outbound call; a missing/invalid session returns 401
 // immediately — this must be the very first branch.
 import { verifySession } from '../../lib/session.js';
-import { getTenantAccount } from '../../lib/tenant-mapping.js';
+import { getTenantAccountVerbose } from '../../lib/tenant-mapping.js';
 import { signTeoRequest } from '../../lib/teo-signer.js';
 
-function noDataAvailable() {
-  return new Response(JSON.stringify({ available: false }), {
+// TEMPORARY diagnostic, same convention as auth/callback.js's
+// AUTH_DEBUG_CALLBACK — when env.DATA_DEBUG === 'true', includes a coarse
+// failure category (never a secret, never raw upstream error text) so the
+// live "no data available" checkpoint can be diagnosed without EdgeOne log
+// access. Remove once Phase 3/4 live checkpoints are confirmed passing.
+function noDataAvailable(env, reason) {
+  const body = { available: false };
+  if (env.DATA_DEBUG === 'true' && reason) body.debugReason = reason;
+  return new Response(JSON.stringify(body), {
     headers: { 'Content-Type': 'application/json' },
   });
 }
@@ -49,9 +56,9 @@ export async function onRequestGet({ request, env }) {
 
   // Only source of ZoneId/credentials in this file — never a query
   // parameter, header, or body field (DATA-03's core guarantee).
-  const account = await getTenantAccount(payload.tenant_id, env);
+  const { account, reason: lookupReason } = await getTenantAccountVerbose(payload.tenant_id, env);
   if (!account) {
-    return noDataAvailable(); // D-05: no mapping is a generic no-data state, not a distinct error
+    return noDataAvailable(env, lookupReason); // D-05: no mapping is a generic no-data state, not a distinct error
   }
 
   const endTime = new Date();
@@ -77,13 +84,15 @@ export async function onRequestGet({ request, env }) {
     const res = await fetch(url, { method: 'POST', headers, body });
     teoResponse = await res.json();
   } catch {
-    return noDataAvailable(); // D-05: network/fetch failure -> generic no-data
+    return noDataAvailable(env, 'network_failure'); // D-05: network/fetch failure -> generic no-data
   }
 
   if (teoResponse.Response && teoResponse.Response.Error) {
     // Never forward Response.Error.Message — it can contain the ZoneId
-    // (03-RESEARCH.md Pitfall 5).
-    return noDataAvailable();
+    // (03-RESEARCH.md Pitfall 5). Error.Code alone (e.g.
+    // "AuthFailure.SecretIdNotFound", "InvalidParameter") is safe — it's a
+    // fixed Tencent enum, not free text, and never embeds the ZoneId/secret.
+    return noDataAvailable(env, teoResponse.Response.Error.Code || 'teo_error');
   }
 
   return new Response(

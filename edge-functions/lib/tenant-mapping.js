@@ -24,21 +24,36 @@
 import { decryptSecret } from './kv-crypto.js';
 
 export async function getTenantAccount(tenantId, env) {
-  if (typeof my_kv === 'undefined') return null; // KV not bound — fail closed, not open
+  const { account } = await getTenantAccountVerbose(tenantId, env);
+  return account;
+}
+
+// getTenantAccountVerbose(tenantId, env) -> { account, reason }
+//
+// Same lookup as getTenantAccount(), but also returns a coarse failure
+// *category* (never a secret, never raw parse/decrypt error text, never the
+// stored zoneId/ciphertext) so a temporary DATA_DEBUG=true diagnostic in the
+// calling route can distinguish "no KV record" from "decryption failed" from
+// "malformed record" — same debug-flag convention as
+// edge-functions/api/auth/callback.js's AUTH_DEBUG_CALLBACK.
+export async function getTenantAccountVerbose(tenantId, env) {
+  if (typeof my_kv === 'undefined') return { account: null, reason: 'kv_unbound' };
 
   const raw = await my_kv.get(`tenant:${tenantId}`);
-  if (!raw) return null;
+  if (!raw) return { account: null, reason: 'no_kv_record' };
 
   try {
     const parsed = JSON.parse(raw);
-    if (!parsed.zoneId || !parsed.secretId || !parsed.secretKey) return null;
+    if (!parsed.zoneId || !parsed.secretId || !parsed.secretKey) {
+      return { account: null, reason: 'missing_field' };
+    }
 
     const secretId = await decryptSecret(parsed.secretId, env);
     const secretKey = await decryptSecret(parsed.secretKey, env);
-    if (!secretId || !secretKey) return null; // decryption failure -> fail closed, never fall back to raw value
+    if (!secretId || !secretKey) return { account: null, reason: 'decrypt_failed' }; // fail closed, never fall back to raw value
 
-    return { zoneId: parsed.zoneId, secretId, secretKey };
+    return { account: { zoneId: parsed.zoneId, secretId, secretKey }, reason: null };
   } catch {
-    return null; // malformed record -> treat as no mapping, never throw raw parse errors to caller
+    return { account: null, reason: 'malformed_record' }; // malformed record -> treat as no mapping, never throw raw parse errors to caller
   }
 }
