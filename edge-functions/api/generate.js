@@ -29,7 +29,7 @@
 // import() of any part of it anywhere in this file.
 import { verifySession } from '../lib/session.js';
 import { getTenantAccount } from '../lib/tenant-mapping.js';
-import { signTeoRequest } from '../lib/teo-signer.js';
+import { signTeoRequest, toTeoRfc3339 } from '../lib/teo-signer.js';
 import { COMPONENT_TYPES, INTERVALS, TIME_RANGES, METRICS_BY_SOURCE, validateWidget } from '../lib/generation-schema.js';
 import { ACTION_BY_SOURCE } from '../lib/metric-lookup.js';
 
@@ -206,8 +206,8 @@ export async function onRequestPost({ request, env }) {
       action,
       version,
       payload: {
-        StartTime: startTime.toISOString(),
-        EndTime: endTime.toISOString(),
+        StartTime: toTeoRfc3339(startTime),
+        EndTime: toTeoRfc3339(endTime),
         MetricNames: [widget.metric],
         Interval: widget.interval,
         ZoneIds: [account.zoneId], // D-03: server-resolved only, never LLM/client-supplied

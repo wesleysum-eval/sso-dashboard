@@ -33,6 +33,18 @@ async function hmacHex(keyBytes, message) {
   return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+// toTeoRfc3339(date) -> strict RFC3339 string in UTC, no milliseconds,
+// explicit "+00:00" offset instead of "Z" — matches Tencent's own
+// StartTime/EndTime example format exactly (e.g. "2022-08-29T19:17:59+08:00").
+// `Date.toISOString()` alone produces "...045Z" (milliseconds + "Z"), which
+// teo's parser rejects with InvalidParameterValue "It must be RFC3339
+// pattern." (confirmed live, 04-01 debug checkpoint). Every StartTime/EndTime
+// value sent to any teo API call must go through this, never raw
+// toISOString().
+export function toTeoRfc3339(date) {
+  return `${date.toISOString().slice(0, 19)}+00:00`;
+}
+
 // signTeoRequest({ secretId, secretKey, action, version, payload, domain })
 // -> { url, headers, body } ready for fetch().
 //

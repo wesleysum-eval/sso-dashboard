@@ -25,7 +25,7 @@
 // immediately — this must be the very first branch.
 import { verifySession } from '../../lib/session.js';
 import { getTenantAccountVerbose } from '../../lib/tenant-mapping.js';
-import { signTeoRequest } from '../../lib/teo-signer.js';
+import { signTeoRequest, toTeoRfc3339 } from '../../lib/teo-signer.js';
 
 // TEMPORARY diagnostic, same convention as auth/callback.js's
 // AUTH_DEBUG_CALLBACK — when env.DATA_DEBUG === 'true', includes a coarse
@@ -76,8 +76,8 @@ export async function onRequestGet({ request, env }) {
     action: 'DescribeTimingL7AnalysisData',
     version: '2022-09-01',
     payload: {
-      StartTime: startTime.toISOString(),
-      EndTime: endTime.toISOString(),
+      StartTime: toTeoRfc3339(startTime),
+      EndTime: toTeoRfc3339(endTime),
       MetricNames: ['l7Flow_outFlux'],
       Interval: 'hour',
       ZoneIds: [account.zoneId], // D-03: server-resolved only, never from client input
