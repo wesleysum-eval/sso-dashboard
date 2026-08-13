@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 04
-current_phase_name: prompt-driven-dashboard-generation-save
+current_phase: 03
+current_phase_name: tenant-scoped-data-source-selection
 status: executing
-stopped_at: "Phase 4 (both plans) fully complete and live-verified. Plan 02's Task 3 blocking checkpoint received the human's \"approved\" response after a full live walkthrough of all 6 verification steps, including the GEN-03 prompt-injection negative test and the SAVE-01 cross-tenant negative test. GEN-04, SAVE-01 marked complete in REQUIREMENTS.md. Phase 3 Plan 02 (Security Events route) still not built — biggest remaining gap. Phase 2/3 documentation checkpoints (refresh persistence, spoofed tenant_id, Phase 3 Plan 01 Task 2 re-confirmation) also still outstanding."
-last_updated: "2026-08-13T01:05:58.840Z"
+stopped_at: "Phase 4 (both plans) fully complete and live-verified. Plan 02's Task 3 blocking checkpoint received the human's \\\\\\\\\\\\\\\"approved\\\\\\\\\\\\\\\" response after a full live walkthrough of all 6 verification steps, including the GEN-03 prompt-injection negative test and the SAVE-01 cross-tenant negative test. GEN-04, SAVE-01 marked complete in REQUIREMENTS.md. Phase 3 Plan 02 (Security Events route) still not built — biggest remaining gap. Phase 2/3 documentation checkpoints (refresh persistence, spoofed tenant_id, Phase 3 Plan 01 Task 2 re-confirmation) also still outstanding."
+last_updated: "2026-08-13T04:56:33.226Z"
 last_activity: 2026-08-13
-last_activity_desc: "Executed Phase 4 Plan 02 (04-02-PLAN.md): built edge-functions/api/dashboard.js (POST, session-gated KV save) and edge-functions/api/dashboard/[id].js (GET, EdgeOne bracket dynamic route, session-gated KV retrieve with cross-tenant-safe key construction), committed aa241a9; extended app.js/index.html with re-prompt/Regenerate wiring confirmation, a Save Dashboard UI rendering its confirmation from the in-memory POST response, and a read-only ?dashboard=<id> retrieval view, committed 125b809; then halted at Task 3 (checkpoint:human-verify, gate=\"blocking\") until the human performed a full live walkthrough of all 5 ROADMAP Phase 4 success criteria (including the GEN-03 prompt-injection negative test and the SAVE-01 cross-tenant negative test) and responded \"approved\". Updated REQUIREMENTS.md (GEN-04, SAVE-01 marked complete — all Phase 4 requirements now complete) and 04-02-SUMMARY.md to reflect the live pass."
+last_activity_desc: "Executed Phase 4 Plan 02 (04-02-PLAN.md): built edge-functions/api/dashboard.js (POST, session-gated KV save) and edge-functions/api/dashboard/[id].js (GET, EdgeOne bracket dynamic route, session-gated KV retrieve with cross-tenant-safe key construction), committed aa241a9; extended app.js/index.html with re-prompt/Regenerate wiring confirmation, a Save Dashboard UI rendering its confirmation from the in-memory POST response, and a read-only ?dashboard=<id> retrieval view, committed 125b809; then halted at Task 3 (checkpoint:human-verify, gate=\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\"blocking\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\") until the human performed a full live walkthrough of all 5 ROADMAP Phase 4 success criteria (including the GEN-03 prompt-injection negative test and the SAVE-01 cross-tenant negative test) and responded \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\"approved\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\". Updated REQUIREMENTS.md (GEN-04, SAVE-01 marked complete — all Phase 4 requirements now complete) and 04-02-SUMMARY.md to reflect the live pass."
 progress:
-  total_phases: 4
+  total_phases: 5
   completed_phases: 3
   total_plans: 8
   completed_plans: 7
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-10)
 
 **Core value:** Enterprise customers can self-serve custom reporting on their own EdgeOne data (CDN traffic, security events) without filing a support/sales request — via a prompt-driven agent, gated behind their enterprise SSO, with data strictly isolated to their own account.
-**Current focus:** Phase 04 — prompt-driven-dashboard-generation-save (COMPLETE); next open gap is Phase 03 Plan 02 (Security Events route, unbuilt)
+**Current focus:** Phase 03 — tenant-scoped-data-source-selection
 
 ## Current Position
 
-Phase: 04 (prompt-driven-dashboard-generation-save) — COMPLETE
-Plan: 2 of 2 — COMPLETE and live-verified (all 5 requirements GEN-01/02/03/04, SAVE-01 confirmed live via Task 3's "approved" checkpoint)
-Status: Phase 2 SSO login verified live by user (refresh/negative-test not yet re-confirmed); Phase 3 Plan 01 code-complete (checkpoint outstanding), Plan 02 (Security Events) NOT YET BUILT; Phase 4 COMPLETE — both plans live-verified
-Last activity: 2026-08-13 — Pushed Phase 4 Plan 02 (save/retrieve + re-prompt UI), human completed full live walkthrough and responded "approved" to Task 3's blocking checkpoint
+Phase: 03 (tenant-scoped-data-source-selection) — EXECUTING
+Plan: 1 of 2
+Status: Executing Phase 03
+Last activity: 2026-08-12 — Phase 03 execution started
 
 Progress: [█████████░] 88% (Phase 4 fully complete and live-verified; Phase 3 Plan 02 remains the biggest open gap; 2 human checkpoints still outstanding in Phases 2-3)
 
@@ -122,6 +122,10 @@ None yet.
 **[NEW] UI-SPEC implementation gap closed, then reconciled with a user-driven restructure.** `02-UI-SPEC.md` (system font, EdgeOne blue `#0052D9`, spacing scale, card layout, exact copywriting) was written during Phase 2's UI-phase step but never actually built into code — `index.html`/`access-denied.html` remained Phase 1's bare unstyled HTML. User reported "I don't see any CSS design on the webpage yet." First fix: added a shared `styles.css` implementing the spec. The user then independently rebuilt `index.html`/`app.js`/`access-denied.html` into a richer structure (top nav with tenant badge, dedicated login screen, Phase-3-ready `.card-grid`/`.source-card` data-source picker) as per-page inline `<style>` blocks with different (indigo) colors, without initially flagging the change. Reconciled by keeping the user's structure/layout in full and swapping its color tokens + copy back to the spec's EdgeOne-blue palette and exact wording; `styles.css` removed as orphaned. `02-UI-SPEC.md`'s Checker Sign-Off and `02-02-SUMMARY.md` updated to describe the merged, final implementation.
 
 **Resolved this session:** Plan 02-01's live verification gap is partially closed but still being actively retested. User set the required env vars in EdgeOne Makers Console and provisioned a real test IdP (Auth0). Three genuine EdgeOne edge-runtime compatibility bugs surfaced once the code reached `openid-client` internals — (1) `AbortSignal.timeout` not implemented on the runtime, (2) `response.setCookies()` deprecated in favor of `Headers`-based `Set-Cookie`, (3) `fetch` rejecting `URLSearchParams` token request bodies. All three have code fixes; the latest fetch-body fix has been pushed and needs live redeploy verification.
+
+### Roadmap Evolution
+
+- Phase 4.1 inserted after Phase 4: Dashboard Renderer & Insights Polish (URGENT)
 
 ## Deferred Items
 
