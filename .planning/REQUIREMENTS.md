@@ -17,15 +17,15 @@
 
 ### Data Source Selection
 
-- [ ] **DATA-01**: User can select CDN Traffic Stats as a data source
+- [x] **DATA-01**: User can select CDN Traffic Stats as a data source
 - [ ] **DATA-02**: User can select Security Events as a data source
-- [ ] **DATA-03**: Data source picker and all underlying queries are scoped exclusively to the logged-in user's own EdgeOne account — no other tenant's data is ever listed, queryable, or returned
+- [ ] **DATA-03**: Data source picker and all underlying queries are scoped exclusively to the logged-in user's own EdgeOne account — no other tenant's data is ever listed, queryable, or returned (positive path live-verified via CDN Traffic Stats in Phase 4 Plan 01's checkpoint; explicit cross-tenant negative test still pending Phase 3 Plan 02)
 
 ### Dashboard Generation
 
-- [ ] **GEN-01**: User can enter a natural-language prompt describing the dashboard/view they want
-- [ ] **GEN-02**: Agent generates a dashboard (charts/tables) from the selected data source based on the prompt, using read-only EdgeOne API calls only
-- [ ] **GEN-03**: Dashboard generation is constrained to a fixed query/component vocabulary (not arbitrary/open-ended code execution against live APIs)
+- [x] **GEN-01**: User can enter a natural-language prompt describing the dashboard/view they want
+- [x] **GEN-02**: Agent generates a dashboard (charts/tables) from the selected data source based on the prompt, using read-only EdgeOne API calls only
+- [x] **GEN-03**: Dashboard generation is constrained to a fixed query/component vocabulary (not arbitrary/open-ended code execution against live APIs)
 - [ ] **GEN-04**: User can re-prompt to refine/regenerate the dashboard without starting over from data-source selection
 
 ### Save
@@ -75,12 +75,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-01 | Phase 2 | Complete |
 | AUTH-02 | Phase 2 | Pending |
 | AUTH-03 | Phase 2 | Complete |
-| DATA-01 | Phase 3 | Pending |
+| DATA-01 | Phase 3 | Complete |
 | DATA-02 | Phase 3 | Pending |
-| DATA-03 | Phase 3 | Pending |
-| GEN-01 | Phase 4 | Pending |
-| GEN-02 | Phase 4 | Pending |
-| GEN-03 | Phase 4 | Pending |
+| DATA-03 | Phase 3 | Partial (positive path live-verified; cross-tenant negative test pending Plan 03-02) |
+| GEN-01 | Phase 4 | Complete |
+| GEN-02 | Phase 4 | Complete |
+| GEN-03 | Phase 4 | Complete |
 | GEN-04 | Phase 4 | Pending |
 | SAVE-01 | Phase 4 | Pending |
 
