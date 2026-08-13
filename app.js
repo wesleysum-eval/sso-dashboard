@@ -954,9 +954,15 @@ function renderRetrievalView(dashboardId) {
   if (tenantConnectSection) tenantConnectSection.style.display = 'none';
 
   // Hide the prompt textarea, Generate/Regenerate button, and Save button
-  // — only the widget stack itself is shown, read-only.
-  const promptPanel = promptSection ? promptSection.querySelector('.prompt-panel') : null;
-  if (promptPanel) promptPanel.style.display = 'none';
+  // — only the widget stack itself is shown, read-only. Hide the textarea
+  // and button individually rather than the whole .prompt-panel container
+  // (CR-02): the heading-row (h2 + #dashboard-state-badge) lives inside
+  // .prompt-panel, so hiding the container made the "✓ Saved · Read-only"
+  // badge structurally unrenderable regardless of its own display value.
+  const promptTextarea = promptSection ? promptSection.querySelector('#prompt-textarea') : null;
+  if (promptTextarea) promptTextarea.style.display = 'none';
+  const generateButton = promptSection ? promptSection.querySelector('#generate-btn') : null;
+  if (generateButton) generateButton.style.display = 'none';
   const saveBar = document.getElementById('save-bar');
   if (saveBar) saveBar.style.display = 'none';
 
