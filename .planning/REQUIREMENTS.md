@@ -32,6 +32,12 @@
 
 - [x] **SAVE-01**: User can save a generated dashboard for later retrieval under their account
 
+### Dashboard Rendering & Insights (Phase 4.1, added 2026-08-13)
+
+- [ ] **DISPLAY-01**: Generated/saved dashboard widgets show human-readable metric labels, correct units, and formatted timestamps — never raw `teo` API metric codes or unformatted ISO/locale timestamp strings
+- [ ] **INSIGHT-01**: Generated dashboards show computed (not LLM-generated) hero-metric emphasis, spike-callout, and summary-insight framing derived from already-fetched data, without expanding GEN-03's closed component/query vocabulary
+- [ ] **SAVE-UI-01**: The Save/retrieval UI shows a Copy Link affordance and a clear visual state label distinguishing generating/draft/saved/read-only, with zero new backend routes
+
 ## v2 Requirements
 
 Deferred to future release. Tracked but not in current roadmap.
@@ -83,13 +89,16 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GEN-03 | Phase 4 | Complete |
 | GEN-04 | Phase 4 | Complete |
 | SAVE-01 | Phase 4 | Complete |
+| DISPLAY-01 | Phase 4.1 | Pending |
+| INSIGHT-01 | Phase 4.1 | Pending |
+| SAVE-UI-01 | Phase 4.1 | Pending |
 
 **Coverage:**
 
-- v1 requirements: 12 total
-- Mapped to phases: 12/12 ✓
+- v1 requirements: 12 total (+3 Phase 4.1 display/UX requirements, added 2026-08-13)
+- Mapped to phases: 15/15 ✓
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-08-10*
-*Last updated: 2026-08-13 after Phase 4 Plan 02's live checkpoint passed — GEN-04, SAVE-01 marked complete; all Phase 4 requirements (GEN-01/02/03/04, SAVE-01) now complete.*
+*Last updated: 2026-08-13 — Phase 4.1 planned: added DISPLAY-01 (metric labels/units/timestamps), INSIGHT-01 (computed hero/spike/summary insights), SAVE-UI-01 (Copy Link + dashboard-state badge) as new v1 requirements, mapped to Phase 4.1's two plans (04.1-01, 04.1-02).*

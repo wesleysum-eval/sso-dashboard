@@ -107,17 +107,29 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 ## Backlog
 
-### Phase 04.1: Dashboard Renderer & Insights Polish (INSERTED)
+### Phase 04.2: Generation Pipeline Reliability & Observability (INSERTED)
 
-**Goal:** Generated/saved dashboards render with human-readable labels, units, and formatted timestamps instead of raw `teo` API codes, plus computed (not LLM-generated) hero-metric/spike/summary insight framing — without reopening Phase 4's locked constrained-generation security model.
-**Requirements**: TBD (display/UX polish — planning to determine if new REQ IDs are warranted)
+**Goal:** [Urgent work - to be planned]
+**Requirements**: TBD
 **Depends on:** Phase 4
-**Context:** `.planning/phases/04.1-dashboard-renderer-insights-polish/04.1-CONTEXT.md` (gathered 2026-08-13 — root cause diagnosed, Artifacts-style freeform HTML explicitly explored and rejected, scope narrowed to label/unit fixes + computed insights + save UI polish)
 **Plans:** 0 plans
 
 Plans:
 
-- [ ] TBD (run /gsd-plan-phase 04.1 to break down)
+- [ ] TBD (run /gsd-plan-phase 04.2 to break down)
+
+### Phase 04.1: Dashboard Renderer & Insights Polish (INSERTED)
+
+**Goal:** Generated/saved dashboards render with human-readable labels, units, and formatted timestamps instead of raw `teo` API codes, plus computed (not LLM-generated) hero-metric/spike/summary insight framing — without reopening Phase 4's locked constrained-generation security model.
+**Requirements**: DISPLAY-01, INSIGHT-01, SAVE-UI-01
+**Depends on:** Phase 4
+**Context:** `.planning/phases/04.1-dashboard-renderer-insights-polish/04.1-CONTEXT.md` (gathered 2026-08-13 — root cause diagnosed, Artifacts-style freeform HTML explicitly explored and rejected, scope narrowed to label/unit fixes + computed insights + save UI polish)
+**Plans:** 2 plans
+
+Plans:
+
+- [ ] 04.1-01-PLAN.md — METRIC_LABELS/unit/timestamp root-cause fix + computed hero-metric/spike-callout/summary-insight + validated dashboardTitle (DISPLAY-01, INSIGHT-01)
+- [ ] 04.1-02-PLAN.md — Dashboard-state badge (Generating/Draft/Saved/Read-only) + Copy Link affordance, zero new backend routes (SAVE-UI-01)
 
 ### Phase 999.1: Predefined dashboard templates (CDN Traffic Overview, Security Threat Overview, Traffic Spike Detection) (BACKLOG)
 
