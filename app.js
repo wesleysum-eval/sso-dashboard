@@ -555,22 +555,52 @@ function computeTrend(series) {
   return 'flat';
 }
 
-// Returns { point, multiplier } if the series' single highest point
-// exceeds 2x the arithmetic mean of all points, else null. Only ever
-// flags the single highest point per call — never a list of multiple
-// points.
+// Returns { point, multiplier } if the series' single highest point is a
+// robust statistical outlier, else null. Only ever flags the single
+// highest point per call — never a list of multiple points.
+//
+// Fix (2026-08-13): the previous implementation used a mean-based
+// `max > mean * 2` heuristic, which is fragile on flat traffic curves
+// (any small transient can drag the mean and trigger a false spike, and
+// the reported "N.N× average" multiplier is unstable). This version uses
+// the median + 3× MAD (Median Absolute Deviation) rule — the same robust
+// outlier test used in most anomaly-detection literature. Falls back
+// gracefully to the old mean-based rule when MAD is zero (identical
+// values across the series), so behaviour on a genuinely flat series is
+// unchanged. Requires at least 4 points to compute a stable median;
+// shorter series never spike (avoids single-point false alarms during
+// backfill).
 function detectSpike(series) {
-  const mean = series.reduce((sum, p) => sum + p.value, 0) / series.length;
-  if (mean === 0) return null;
+  if (!Array.isArray(series) || series.length < 4) return null;
+
+  const values = series.map((p) => p.value).slice().sort((a, b) => a - b);
+  const median = values[Math.floor(values.length / 2)];
+
+  const deviations = values.map((v) => Math.abs(v - median)).sort((a, b) => a - b);
+  const mad = deviations[Math.floor(deviations.length / 2)];
 
   let maxPoint = series[0];
   for (const point of series) {
     if (point.value > maxPoint.value) maxPoint = point;
   }
 
-  if (maxPoint.value > mean * 2) {
-    return { point: maxPoint, multiplier: Math.round((maxPoint.value / mean) * 10) / 10 };
+  // Robust rule: exceed median + 3× MAD (≈ 3σ under a normal-ish
+  // distribution). Only flags true outliers, not routine variance.
+  if (mad > 0 && maxPoint.value > median + 3 * mad) {
+    const multiplier = median > 0
+      ? Math.round((maxPoint.value / median) * 10) / 10
+      : 0;
+    return { point: maxPoint, multiplier };
   }
+
+  // MAD-zero fallback: series is constant except for the max. Use a
+  // conservative 2× median threshold so we don't false-alarm on tiny
+  // discrete jitter in an otherwise-flat curve.
+  if (mad === 0 && median > 0 && maxPoint.value > median * 2) {
+    const multiplier = Math.round((maxPoint.value / median) * 10) / 10;
+    return { point: maxPoint, multiplier };
+  }
+
   return null;
 }
 
@@ -715,7 +745,13 @@ function renderChartWidget(widget, chartType) {
     );
     const multiplierSpan = document.createElement('span');
     multiplierSpan.className = 'spike-value';
-    multiplierSpan.textContent = `${spike.multiplier}\u00d7 average`;
+    // Fix (2026-08-13): call this out as "typical" (median-relative), not
+    // "average" — detectSpike now uses median + MAD, not the arithmetic
+    // mean, so the multiplier is against the typical value rather than
+    // an outlier-sensitive average.
+    multiplierSpan.textContent = spike.multiplier > 0
+      ? `${spike.multiplier}\u00d7 typical`
+      : 'well above typical';
     callout.appendChild(multiplierSpan);
     callout.append(')');
 
@@ -834,6 +870,21 @@ function renderWidgets(widgets) {
   widgets.forEach((widget, index) => {
     stack.appendChild(renderWidget(widget, index === heroIndex));
   });
+
+  // Fix (2026-08-13): "As of {timestamp}" footer so users see the
+  // dashboard is a snapshot, not a live-updating view. Applies to every
+  // generated dashboard (previously only the built-in default snapshots
+  // showed a timestamp — line 208 of loadDefaultDataSourceDashboard).
+  // Guarded by widgets.length > 0 to avoid rendering under an empty
+  // state.
+  if (widgets.length > 0) {
+    const footer = document.createElement('div');
+    footer.className = 'dashboard-timestamp-footer';
+    footer.style.cssText =
+      'margin-top: 16px; font-size: 12px; color: var(--color-text-subtle); text-align: right;';
+    footer.textContent = `Snapshot as of ${new Date().toLocaleString()}`;
+    stack.appendChild(footer);
+  }
 }
 
 // ---------- Phase 4.1 (D-06/D-UI-16/D-UI-17): dashboard-state badge ----------
@@ -1091,6 +1142,18 @@ function renderRetrievalView(dashboardId) {
     .then(({ ok, body }) => {
       if (ok && body && Array.isArray(body.spec)) {
         renderWidgets(body.spec);
+        // Fix (2026-08-13): renderWidgets() now appends its own
+        // "Snapshot as of <now>" footer, but that timestamp is misleading
+        // in the retrieval view — the dashboard data was captured at
+        // save time (body.createdAt), not "now". Replace the auto-appended
+        // footer's text with the saved timestamp when available.
+        const stackEl = document.getElementById('widget-stack');
+        if (stackEl) {
+          const footer = stackEl.querySelector('.dashboard-timestamp-footer');
+          if (footer && typeof body.createdAt === 'number') {
+            footer.textContent = `Snapshot from ${new Date(body.createdAt).toLocaleString()}`;
+          }
+        }
         // WR-01 fix: render the persisted dashboardTitle (if any) into the
         // same heading element the generate flow uses, mirroring the
         // fallback text used there ("Your Dashboard") for consistency.
