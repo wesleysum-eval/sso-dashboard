@@ -109,14 +109,17 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 ### Phase 04.2: Generation Pipeline Reliability & Observability (INSERTED)
 
-**Goal:** [Urgent work - to be planned]
-**Requirements**: TBD
+**Goal:** Close the gap between `04-AI-SPEC.md`'s design contract and Phase 4's shipped code — parallelize the per-widget `teo` fetch (real latency bug), surface a partial-success "N of M widgets generated" signal, add structured no-leak production logging at generation/save/retrieve decision points, and stand up the Promptfoo eval suite the AI-SPEC already designed but was never built — without touching GEN-03's constrained-generation trust boundary.
+**Requirements**: GEN-02, GEN-03, SAVE-01 (hardening of already-complete Phase 4 requirements per CONTEXT.md D-06 — no new v1 requirement IDs)
 **Depends on:** Phase 4
-**Plans:** 0 plans
+**Context:** `.planning/phases/04.2-generation-pipeline-reliability-observability/04.2-CONTEXT.md` (gathered 2026-08-13 — D-01..D-07 locked, priority order D-05: concurrency fix -> partial-success signal -> structured logging -> eval suite)
+**Plans:** 3 plans
 
 Plans:
 
-- [ ] TBD (run /gsd-plan-phase 04.2 to break down)
+- [ ] 04.2-01-PLAN.md — Concurrent teo fetch (Promise.allSettled) + requestedCount/validCount response fields + optional UI note (D-03, D-04)
+- [ ] 04.2-02-PLAN.md — Structured no-leak JSON logging at generation/save/retrieve decision points (D-02)
+- [ ] 04.2-03-PLAN.md — Promptfoo eval suite (evals/ authoring, package-legitimacy checkpoint, baseline eval run) (D-01)
 
 ### Phase 04.1: Dashboard Renderer & Insights Polish (INSERTED)
 
