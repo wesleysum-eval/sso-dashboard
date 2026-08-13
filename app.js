@@ -510,6 +510,23 @@ function extractSeries(data, interval) {
     return series.length > 0 ? series : null;
   }
 
+  // DescribeDDoSAttackData (security-events) shape:
+  // data[0].Value[].Detail[].{ Timestamp, Value } — note `Value` here is an
+  // array (plural shape), distinct from the CDN-traffic TypeValue/FloatTypeValue
+  // branch above. See 03-RESEARCH.md for the verbatim response shape.
+  const ddosDetail = Array.isArray(first?.Value) ? first.Value[0]?.Detail : undefined;
+  if (Array.isArray(ddosDetail) && ddosDetail.length > 0) {
+    const series = ddosDetail
+      .map((point) => {
+        const rawTimestamp = point.Timestamp ?? point.Time ?? point.time;
+        const label = formatTimestamp(rawTimestamp, interval);
+        const value = Number(point.Value ?? point.value);
+        return { label: String(label), value, rawTimestamp };
+      })
+      .filter((point) => !Number.isNaN(point.value));
+    return series.length > 0 ? series : null;
+  }
+
   // Flat array of { Time/time, Value/value } points directly.
   if (first && (first.Time !== undefined || first.time !== undefined)) {
     const series = data
