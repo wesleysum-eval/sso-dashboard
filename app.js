@@ -302,22 +302,34 @@ function loadConnectStatus() {
 // especially the LLM-supplied `title`, uses textContent/createElement —
 // never innerHTML.
 
-// extractSeries(data) attempts to normalize a handful of plausible
-// `DescribeTimingL7AnalysisData`/`DescribeDDoSAttackData` response shapes
-// into a flat [{ label, value }] series. Returns null if the shape doesn't
-// match anything recognized — callers must render a `.widget-placeholder`
-// in that case rather than throwing, so one malformed widget never breaks
-// its siblings (D-UI-03/Pitfall 6).
+// extractSeries(data) normalizes the real teo `DescribeTimingL7AnalysisData`/
+// `DescribeDDoSAttackData` response shape into a flat [{ label, value }]
+// series: `data[0].TypeValue[].Detail[].{ Timestamp, Value }` for
+// integer-valued metrics, or `data[0].FloatTypeValue[].Detail[].{ Timestamp,
+// Value }` for float-valued metrics (e.g. l7Flow_requestRate) — see
+// EdgeOne_API_Knowledge_Base.md's Output Parameters for
+// DescribeTimingL7AnalysisData. `Timestamp` is a Unix seconds integer, not
+// an ISO string. Returns null if the shape doesn't match anything
+// recognized — callers must render a `.widget-placeholder` in that case
+// rather than throwing, so one malformed widget never breaks its siblings
+// (D-UI-03/Pitfall 6).
 function extractSeries(data) {
   if (!Array.isArray(data) || data.length === 0) return null;
 
   const first = data[0];
-  const detail = first && (first.DetailData || first.Detail);
+  const typeValues = [
+    ...(Array.isArray(first?.TypeValue) ? first.TypeValue : []),
+    ...(Array.isArray(first?.FloatTypeValue) ? first.FloatTypeValue : []),
+  ];
+  const detail = typeValues[0]?.Detail;
 
   if (Array.isArray(detail) && detail.length > 0) {
     const series = detail
       .map((point) => {
-        const label = point.Time ?? point.time ?? '';
+        const label =
+          point.Timestamp !== undefined
+            ? new Date(point.Timestamp * 1000).toLocaleString()
+            : point.Time ?? point.time ?? '';
         const value = Number(point.Value ?? point.value);
         return { label: String(label), value };
       })
