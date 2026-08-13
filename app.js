@@ -14,7 +14,9 @@ const draft = { dataSource: null, prompt: '', spec: null, data: null };
 function getSourceFromUrl() {
   const params = new URLSearchParams(window.location.search);
   const value = params.get('source');
-  return value === 'cdn-traffic' ? value : null;
+  // Phase 3 Plan 02 (D-01): closed vocabulary of exactly the two data
+  // sources this app supports — any other value is treated as absent.
+  return value === 'cdn-traffic' || value === 'security-events' ? value : null;
 }
 
 function setSourceInUrl(source) {
@@ -155,7 +157,12 @@ if (cdnTrafficCard) {
           // generate path (renderChartWidget -> extractSeries) rather than
           // dumping raw JSON — same real teo response shape, same fix.
           const card = renderChartWidget(
-            { title: 'Outbound Traffic (last 24h)', metric: 'l7Flow_outFlux', data: data.data },
+            {
+              title: 'Outbound Traffic (last 24h)',
+              metric: 'l7Flow_outFlux',
+              data: data.data,
+              interval: 'hour',
+            },
             'line',
           );
           resultEl.appendChild(card);
@@ -307,6 +314,112 @@ function loadConnectStatus() {
 // especially the LLM-supplied `title`, uses textContent/createElement —
 // never innerHTML.
 
+// METRIC_LABELS: client-side mirror of edge-functions/lib/generation-
+// schema.js's export, verbatim. app.js has no module system and cannot
+// import from edge-functions/ (this project's existing plain-script
+// convention) — this is a deliberate content duplication of a small closed
+// constant table, not a new architecture. Must be kept in sync with
+// edge-functions/lib/generation-schema.js's METRIC_LABELS by hand.
+const METRIC_LABELS = {
+  'l7Flow_outFlux': { label: 'Outbound Traffic', unit: 'Bytes', format: 'bytes-binary' },
+  'l7Flow_inFlux': { label: 'Inbound Traffic', unit: 'Bytes', format: 'bytes-binary' },
+  'l7Flow_flux': { label: 'Total Traffic', unit: 'Bytes', format: 'bytes-binary' },
+  'l7Flow_outBandwidth': { label: 'Outbound Bandwidth', unit: 'bps', format: 'bandwidth-decimal' },
+  'l7Flow_inBandwidth': { label: 'Inbound Bandwidth', unit: 'bps', format: 'bandwidth-decimal' },
+  'l7Flow_bandwidth': { label: 'Total Bandwidth', unit: 'bps', format: 'bandwidth-decimal' },
+  'l7Flow_request': { label: 'Request Count', unit: 'requests', format: 'integer-grouped' },
+  'l7Flow_avgResponseTime': { label: 'Avg Response Time', unit: 'ms', format: 'ms-rounded' },
+  'l7Flow_avgFirstByteResponseTime': {
+    label: 'Avg First-Byte Time',
+    unit: 'ms',
+    format: 'ms-rounded',
+  },
+  'l7Flow_requestRate': { label: 'Request Rate', unit: 'req per s', format: 'rate-1dp' },
+  'ddos_attackMaxBandwidth': {
+    label: 'Peak Attack Bandwidth',
+    unit: 'bps',
+    format: 'bandwidth-decimal',
+  },
+  'ddos_attackMaxPackageRate': {
+    label: 'Peak Attack Packet Rate',
+    unit: 'pps',
+    format: 'integer-grouped',
+  },
+  'ddos_attackBandwidth': { label: 'Attack Bandwidth', unit: 'bps', format: 'bandwidth-decimal' },
+  'ddos_attackPackageRate': {
+    label: 'Attack Packet Rate',
+    unit: 'pps',
+    format: 'integer-grouped',
+  },
+};
+
+// formatMetricValue(value, formatRule, unit) implements 04.1-UI-SPEC.md's
+// Numeric Formatting Rules exactly. Reads the unit string from the caller
+// (looked up via METRIC_LABELS at each call site) rather than hardcoding
+// "requests" vs "pps" here. Zero values render as "0 {unit}" (never blank)
+// for every rule.
+function formatMetricValue(value, formatRule, unit) {
+  const n = Number(value) || 0;
+
+  if (formatRule === 'bytes-binary') {
+    if (n < 1024) return `${n} B`;
+    if (n < 1024 ** 2) return `${(n / 1024).toFixed(1)} KB`;
+    if (n < 1024 ** 3) return `${(n / 1024 ** 2).toFixed(1)} MB`;
+    return `${(n / 1024 ** 3).toFixed(1)} GB`;
+  }
+
+  if (formatRule === 'bandwidth-decimal') {
+    if (n < 1000) return `${n} bps`;
+    if (n < 1e6) return `${(n / 1000).toFixed(1)} Kbps`;
+    if (n < 1e9) return `${(n / 1e6).toFixed(1)} Mbps`;
+    return `${(n / 1e9).toFixed(1)} Gbps`;
+  }
+
+  if (formatRule === 'integer-grouped') {
+    return `${Math.round(n).toLocaleString()} ${unit}`;
+  }
+
+  if (formatRule === 'ms-rounded') {
+    return `${Math.round(n)} ms`;
+  }
+
+  if (formatRule === 'rate-1dp') {
+    return `${n.toFixed(1)} req/s`;
+  }
+
+  // Unknown format rule: fall back to a plain unit-suffixed number rather
+  // than throwing (D-08 lineage — fail-soft-to-default).
+  return `${n} ${unit}`;
+}
+
+// formatTimestamp(rawValue, interval) implements 04.1-UI-SPEC.md's
+// Timestamp Format Contract: one formatting function shared by chart
+// x-axis labels, table "Time" column, and the spike-callout's timestamp
+// substitution — never three divergent formats for the same underlying
+// point. Accepts both a Unix-seconds number (multiplied by 1000 before
+// constructing a Date) and a pre-existing Date-parseable string.
+function formatTimestamp(rawValue, interval) {
+  const date =
+    typeof rawValue === 'number' ? new Date(rawValue * 1000) : new Date(rawValue);
+
+  if (Number.isNaN(date.getTime())) return String(rawValue ?? '');
+
+  const month = date.toLocaleString('en-US', { month: 'short' });
+  const day = date.getDate();
+
+  if (interval === 'day') {
+    return `${month} ${day}`;
+  }
+
+  // Default to 'hour' format if interval is missing/unrecognized.
+  const time = date.toLocaleString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+  return `${month} ${day}, ${time}`;
+}
+
 // extractSeries(data) normalizes the real teo `DescribeTimingL7AnalysisData`/
 // `DescribeDDoSAttackData` response shape into a flat [{ label, value }]
 // series: `data[0].TypeValue[].Detail[].{ Timestamp, Value }` for
@@ -318,7 +431,7 @@ function loadConnectStatus() {
 // recognized — callers must render a `.widget-placeholder` in that case
 // rather than throwing, so one malformed widget never breaks its siblings
 // (D-UI-03/Pitfall 6).
-function extractSeries(data) {
+function extractSeries(data, interval) {
   if (!Array.isArray(data) || data.length === 0) return null;
 
   const first = data[0];
@@ -331,12 +444,10 @@ function extractSeries(data) {
   if (Array.isArray(detail) && detail.length > 0) {
     const series = detail
       .map((point) => {
-        const label =
-          point.Timestamp !== undefined
-            ? new Date(point.Timestamp * 1000).toLocaleString()
-            : point.Time ?? point.time ?? '';
+        const rawTimestamp = point.Timestamp ?? point.Time ?? point.time;
+        const label = formatTimestamp(rawTimestamp, interval);
         const value = Number(point.Value ?? point.value);
-        return { label: String(label), value };
+        return { label: String(label), value, rawTimestamp };
       })
       .filter((point) => !Number.isNaN(point.value));
     return series.length > 0 ? series : null;
@@ -346,9 +457,10 @@ function extractSeries(data) {
   if (first && (first.Time !== undefined || first.time !== undefined)) {
     const series = data
       .map((point) => {
-        const label = point.Time ?? point.time ?? '';
+        const rawTimestamp = point.Timestamp ?? point.Time ?? point.time;
+        const label = formatTimestamp(rawTimestamp, interval);
         const value = Number(point.Value ?? point.value);
-        return { label: String(label), value };
+        return { label: String(label), value, rawTimestamp };
       })
       .filter((point) => !Number.isNaN(point.value));
     return series.length > 0 ? series : null;
@@ -361,10 +473,14 @@ function widgetCardShell(widget) {
   const card = document.createElement('div');
   card.className = 'widget-card';
 
+  // D-01 root-cause fix: fall back to METRIC_LABELS' human-readable label
+  // instead of the bare raw teo metric code, falling back to the metric
+  // code itself only if the lookup misses (D-UI-09 graceful degradation).
+  const fallbackTitle = METRIC_LABELS[widget.metric]?.label ?? widget.metric;
   const title = document.createElement('div');
   title.className = 'widget-card-title';
-  title.textContent = widget.title || widget.metric;
-  title.title = widget.title || widget.metric;
+  title.textContent = widget.title || fallbackTitle;
+  title.title = widget.title || fallbackTitle;
   card.appendChild(title);
 
   return card;
@@ -382,7 +498,7 @@ function renderPlaceholder(widget) {
 }
 
 function renderChartWidget(widget, chartType) {
-  const series = extractSeries(widget.data);
+  const series = extractSeries(widget.data, widget.interval);
   if (!series) return renderPlaceholder(widget);
 
   const card = widgetCardShell(widget);
@@ -392,13 +508,15 @@ function renderChartWidget(widget, chartType) {
 
   if (typeof Chart === 'undefined') return renderPlaceholder(widget);
 
+  const datasetLabel = widget.title || METRIC_LABELS[widget.metric]?.label || widget.metric;
+
   new Chart(canvas.getContext('2d'), {
     type: chartType,
     data: {
       labels: series.map((point) => point.label),
       datasets: [
         {
-          label: widget.title || widget.metric,
+          label: datasetLabel,
           data: series.map((point) => point.value),
           backgroundColor: '#0052d9',
           borderColor: '#0052d9',
@@ -414,23 +532,26 @@ function renderChartWidget(widget, chartType) {
 }
 
 function renderStatCardWidget(widget) {
-  const series = extractSeries(widget.data);
+  const series = extractSeries(widget.data, widget.interval);
   if (!series) return renderPlaceholder(widget);
 
   const total = series.reduce((sum, point) => sum + point.value, 0);
+  const meta = METRIC_LABELS[widget.metric];
 
   const card = widgetCardShell(widget);
   const value = document.createElement('div');
   value.className = 'stat-card-value';
-  value.textContent = String(Math.round(total * 100) / 100);
+  value.textContent = formatMetricValue(total, meta?.format, meta?.unit ?? '');
   card.appendChild(value);
 
   return card;
 }
 
 function renderTableWidget(widget) {
-  const series = extractSeries(widget.data);
+  const series = extractSeries(widget.data, widget.interval);
   if (!series) return renderPlaceholder(widget);
+
+  const meta = METRIC_LABELS[widget.metric];
 
   const card = widgetCardShell(widget);
   const table = document.createElement('table');
@@ -452,7 +573,7 @@ function renderTableWidget(widget) {
     const timeCell = document.createElement('td');
     timeCell.textContent = point.label;
     const valueCell = document.createElement('td');
-    valueCell.textContent = String(point.value);
+    valueCell.textContent = formatMetricValue(point.value, meta?.format, meta?.unit ?? '');
     row.appendChild(timeCell);
     row.appendChild(valueCell);
     tbody.appendChild(row);

@@ -36,6 +36,52 @@ export const METRICS_BY_SOURCE = {
   ], // full DescribeDDoSAttackData MetricNames enum, CITED cloud.tencent.com/document/product/1552/80660
 };
 
+// METRIC_LABELS: display-only lookup (metric code -> { label, unit, format })
+// for every value in METRICS_BY_SOURCE (04.1-UI-SPEC.md's Metric Label and
+// Unit Contract). Same "flat object, code string -> fixed metadata object,
+// never LLM-writable" shape as ACTION_BY_SOURCE (metric-lookup.js) — this is
+// the third instance of that pattern in this codebase. `format` selects one
+// of the Numeric Formatting Rules implemented client-side by app.js's
+// formatMetricValue(). This fixes 04.1-CONTEXT.md's D-01 root cause: the
+// absence of any human-readable label/unit lookup, which previously forced
+// widgetCardShell()'s title fallback to show the raw teo metric code.
+//
+// app.js maintains its own client-side copy of this exact object (it has no
+// module system and cannot import from edge-functions/) — keep both in sync
+// by hand if this table ever changes.
+export const METRIC_LABELS = {
+  'l7Flow_outFlux': { label: 'Outbound Traffic', unit: 'Bytes', format: 'bytes-binary' },
+  'l7Flow_inFlux': { label: 'Inbound Traffic', unit: 'Bytes', format: 'bytes-binary' },
+  'l7Flow_flux': { label: 'Total Traffic', unit: 'Bytes', format: 'bytes-binary' },
+  'l7Flow_outBandwidth': { label: 'Outbound Bandwidth', unit: 'bps', format: 'bandwidth-decimal' },
+  'l7Flow_inBandwidth': { label: 'Inbound Bandwidth', unit: 'bps', format: 'bandwidth-decimal' },
+  'l7Flow_bandwidth': { label: 'Total Bandwidth', unit: 'bps', format: 'bandwidth-decimal' },
+  'l7Flow_request': { label: 'Request Count', unit: 'requests', format: 'integer-grouped' },
+  'l7Flow_avgResponseTime': { label: 'Avg Response Time', unit: 'ms', format: 'ms-rounded' },
+  'l7Flow_avgFirstByteResponseTime': {
+    label: 'Avg First-Byte Time',
+    unit: 'ms',
+    format: 'ms-rounded',
+  },
+  'l7Flow_requestRate': { label: 'Request Rate', unit: 'req per s', format: 'rate-1dp' },
+  'ddos_attackMaxBandwidth': {
+    label: 'Peak Attack Bandwidth',
+    unit: 'bps',
+    format: 'bandwidth-decimal',
+  },
+  'ddos_attackMaxPackageRate': {
+    label: 'Peak Attack Packet Rate',
+    unit: 'pps',
+    format: 'integer-grouped',
+  },
+  'ddos_attackBandwidth': { label: 'Attack Bandwidth', unit: 'bps', format: 'bandwidth-decimal' },
+  'ddos_attackPackageRate': {
+    label: 'Attack Packet Rate',
+    unit: 'pps',
+    format: 'integer-grouped',
+  },
+};
+
 // validateWidget(widget, dataSource) -> validated widget, or null.
 //
 // Fail-closed discipline (matches tenant-mapping.js's getTenantAccount()):
