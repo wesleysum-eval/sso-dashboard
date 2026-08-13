@@ -1,10 +1,15 @@
-// Phase 4 (GEN-01..03): client-side draft state for the currently selected
-// data source and the last-generated widget spec — kept purely in-memory
-// (D-07), never persisted to a cookie/KV. The selected data source is also
-// reflected into the URL's `?source=` query param (Phase 3's D-04
-// passthrough state) so a page refresh mid-flow doesn't silently lose which
-// source was picked, without introducing any server-side session growth.
-const draft = { dataSource: null, prompt: '', spec: null };
+// Phase 4 (GEN-01..04, SAVE-01): client-side draft state for the currently
+// selected data source and the last-generated widget spec — kept purely
+// in-memory (D-07), never persisted to a cookie/KV. `data` mirrors the
+// generic { spec, data, prompt } save contract (edge-functions/api/
+// dashboard.js) — the real per-widget fetched data already travels inside
+// each entry of `spec` (unchanged from Plan 04-01), so this field exists
+// for shape-compatibility with the save payload rather than being read by
+// any renderer. The selected data source is also reflected into the URL's
+// `?source=` query param (Phase 3's D-04 passthrough state) so a page
+// refresh mid-flow doesn't silently lose which source was picked, without
+// introducing any server-side session growth.
+const draft = { dataSource: null, prompt: '', spec: null, data: null };
 
 function getSourceFromUrl() {
   const params = new URLSearchParams(window.location.search);
@@ -17,6 +22,21 @@ function setSourceInUrl(source) {
   url.searchParams.set('source', source);
   window.history.replaceState({}, '', url);
 }
+
+// Phase 4 (SAVE-01): a bookmarked `/?dashboard=<id>` link — read-only
+// retrieval of a previously saved dashboard, never mixed with the
+// generation flow's own state.
+function getDashboardIdFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('dashboard');
+}
+
+// Read once at script-load time. renderRetrievalView() (defined further
+// below — function declarations are hoisted, so calling it from inside the
+// /api/status callback here is safe) is the single call site that actually
+// invokes it, gated on `data.authenticated` so an unauthenticated visitor
+// sees the normal login screen instead.
+const retrievalDashboardId = getDashboardIdFromUrl();
 
 fetch('/api/status')
   .then((r) => r.json())
@@ -62,6 +82,22 @@ fetch('/api/status')
     // renders for authenticated users. Reuses this same /api/status fetch
     // and its `authenticated` field — no duplicate client-side session
     // check is introduced.
+    //
+    // Phase 4 (SAVE-01): when a `?dashboard=<id>` retrieval link is open,
+    // skip all of the normal generation-flow gating below entirely —
+    // renderRetrievalView() owns dashboard-main/prompt-section visibility
+    // in that mode, and running both would race (whichever resolves last
+    // wins), undoing the read-only view's hidden controls (D-UI-07).
+    if (retrievalDashboardId) {
+      if (data.authenticated) {
+        renderRetrievalView(retrievalDashboardId);
+      }
+      // Not authenticated: the existing login-screen branch above already
+      // handles this — the retrieval fetch itself is session-gated and
+      // would 401 anyway, so no separate messaging is needed here.
+      return;
+    }
+
     const dataSourceSection = document.getElementById('data-source-section');
     if (dataSourceSection) {
       dataSourceSection.style.display = data.authenticated ? '' : 'none';
@@ -479,6 +515,9 @@ if (generateBtn) {
       body: JSON.stringify({
         dataSource: draft.dataSource,
         prompt: promptText,
+        // GEN-04: previousSpec carries the prior widget spec forward on a
+        // re-prompt so /api/generate can refine it — same route, zero
+        // server-side change, per 04-CONTEXT.md D-07.
         previousSpec: isRePrompt ? draft.spec : undefined,
       }),
     })
@@ -486,8 +525,15 @@ if (generateBtn) {
       .then(({ ok, body }) => {
         if (ok && body && Array.isArray(body.widgets) && body.widgets.length > 0) {
           draft.prompt = promptText;
+          // Each widget already carries its own fetched teo data merged in
+          // (Plan 04-01's response shape) — `spec` is this render-ready
+          // array; `data` mirrors it for save-payload shape compatibility
+          // with edge-functions/api/dashboard.js's { spec, data, prompt }
+          // contract (no separate raw-data extraction exists server-side).
           draft.spec = body.widgets;
+          draft.data = body.widgets;
           renderWidgets(body.widgets);
+          showSaveBar();
         } else {
           // D-08: exact generic copy, regardless of underlying cause —
           // keep any prior dashboard visible (D-UI-01).
@@ -502,4 +548,133 @@ if (generateBtn) {
         generateBtn.textContent = draft.spec ? 'Regenerate' : 'Generate Dashboard';
       });
   });
+}
+
+// ---------- Phase 4 (SAVE-01): Save Dashboard + retrieval view ----------
+//
+// D-UI-06: the save-success render path uses the POST /api/dashboard
+// response body directly — never an immediate GET /api/dashboard/:id
+// re-fetch (Pitfall 5 — sidesteps KV's 60-second eventual-consistency
+// window).
+
+function showSaveBar() {
+  const bar = document.getElementById('save-bar');
+  if (!bar) return;
+  bar.style.display = '';
+  bar.textContent = '';
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn-primary save-bar-btn';
+  btn.textContent = 'Save Dashboard';
+  btn.addEventListener('click', () => saveDashboard(bar, btn));
+  bar.appendChild(btn);
+}
+
+function saveDashboard(bar, btn) {
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  fetch('/api/dashboard', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ spec: draft.spec, data: draft.data, prompt: draft.prompt }),
+  })
+    .then((r) => r.json().then((body) => ({ ok: r.ok, body })))
+    .then(({ ok, body }) => {
+      if (ok && body && body.dashboardId) {
+        // Render from the already-in-memory response — never re-fetch
+        // GET /api/dashboard/:id immediately (Pitfall 5).
+        bar.textContent = '';
+
+        const confirmation = document.createElement('div');
+        confirmation.className = 'save-confirmation';
+
+        const label = document.createElement('span');
+        label.textContent = 'Saved \u2713 — Dashboard saved. Bookmark this link to view it again: ';
+        confirmation.appendChild(label);
+
+        const link = document.createElement('a');
+        const url = new URL(window.location.href);
+        url.search = '';
+        url.searchParams.set('dashboard', body.dashboardId);
+        link.href = url.toString();
+        link.textContent = url.toString();
+        confirmation.appendChild(link);
+
+        bar.appendChild(confirmation);
+      } else {
+        btn.disabled = false;
+        btn.textContent = 'Save Dashboard';
+        showSaveError(bar, btn);
+      }
+    })
+    .catch(() => {
+      btn.disabled = false;
+      btn.textContent = 'Save Dashboard';
+      showSaveError(bar, btn);
+    });
+}
+
+function showSaveError(bar) {
+  let errorText = bar.querySelector('.save-error-text');
+  if (!errorText) {
+    errorText = document.createElement('div');
+    errorText.className = 'save-error-text';
+    bar.appendChild(errorText);
+  }
+  errorText.textContent = "Couldn't save right now. Try again in a moment.";
+}
+
+// D-UI-07: the retrieval view (`?dashboard=<id>`) renders read-only — the
+// prompt textarea, Generate/Regenerate button, and Save button are all
+// hidden entirely, not just disabled. v1 has no edit-and-re-save flow.
+function renderRetrievalView(dashboardId) {
+  const loginScreen = document.getElementById('login-screen');
+  const notFoundScreen = document.getElementById('not-found-screen');
+  const dashboardMain = document.getElementById('dashboard-main');
+  const dataSourceSection = document.getElementById('data-source-section');
+  const tenantConnectSection = document.getElementById('tenant-connect-section');
+  const promptSection = document.getElementById('prompt-section');
+
+  if (loginScreen) loginScreen.classList.add('is-hidden');
+  if (dataSourceSection) dataSourceSection.style.display = 'none';
+  if (tenantConnectSection) tenantConnectSection.style.display = 'none';
+
+  // Hide the prompt textarea, Generate/Regenerate button, and Save button
+  // — only the widget stack itself is shown, read-only.
+  const promptPanel = promptSection ? promptSection.querySelector('.prompt-panel') : null;
+  if (promptPanel) promptPanel.style.display = 'none';
+  const saveBar = document.getElementById('save-bar');
+  if (saveBar) saveBar.style.display = 'none';
+
+  if (promptSection) promptSection.style.display = '';
+  if (dashboardMain) dashboardMain.style.display = '';
+
+  const stack = document.getElementById('widget-stack');
+  if (stack) {
+    stack.textContent = '';
+    const loading = document.createElement('div');
+    loading.className = 'widget-loading-state';
+    loading.textContent = 'Loading dashboard\u2026';
+    stack.appendChild(loading);
+  }
+
+  fetch('/api/dashboard/' + encodeURIComponent(dashboardId))
+    .then((r) => r.json().then((body) => ({ ok: r.ok, body })))
+    .then(({ ok, body }) => {
+      if (ok && body && Array.isArray(body.spec)) {
+        renderWidgets(body.spec);
+      } else {
+        // D-06: identical "Dashboard not found." copy regardless of cause
+        // (missing id vs. cross-tenant) — full-page state, same pattern as
+        // access-denied.html's centered-card.
+        if (dashboardMain) dashboardMain.style.display = 'none';
+        if (notFoundScreen) notFoundScreen.classList.remove('is-hidden');
+      }
+    })
+    .catch(() => {
+      if (dashboardMain) dashboardMain.style.display = 'none';
+      if (notFoundScreen) notFoundScreen.classList.remove('is-hidden');
+    });
 }

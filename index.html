@@ -447,6 +447,58 @@
         font-size: 14px;
         color: var(--color-text);
       }
+
+      .save-bar-btn {
+        width: auto;
+        padding: 10px 20px;
+      }
+
+      .save-bar-btn:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+
+      .save-confirmation {
+        font-size: 13px;
+        color: var(--color-text);
+      }
+
+      .save-confirmation a {
+        color: var(--color-primary);
+      }
+
+      .save-error-text {
+        font-size: 13px;
+        color: var(--color-text-muted);
+      }
+
+      .widget-loading-state {
+        background: var(--color-card);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        padding: 24px;
+        text-align: center;
+        font-size: 14px;
+        color: var(--color-text-muted);
+      }
+
+      /* ---------- Full-page not-found state (retrieval view) ---------- */
+      .denied-card {
+        width: 100%;
+        max-width: 400px;
+        background: var(--color-card);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-card);
+        padding: 40px 36px;
+        text-align: center;
+      }
+
+      .denied-card h1 {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+      }
     </style>
   </head>
   <body>
@@ -467,7 +519,13 @@
       </div>
     </div>
 
-    <main class="dashboard-main">
+    <div id="not-found-screen" class="login-screen is-hidden">
+      <div class="denied-card">
+        <h1>Dashboard not found.</h1>
+      </div>
+    </div>
+
+    <main id="dashboard-main" class="dashboard-main">
       <div id="tenant-connect-section" style="display: none">
         <div id="connect-card" class="connect-card">
           <!-- Populated by app.js: either the connect form (not connected)
@@ -510,6 +568,8 @@
             </div>
           </div>
         </div>
+
+        <div id="save-bar" class="save-bar" style="display: none"></div>
       </div>
     </main>
 
