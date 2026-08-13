@@ -112,3 +112,22 @@ export function validateWidget(widget, dataSource) {
     title: String(title || '').slice(0, 120),
   };
 }
+
+// validateDashboardTitle(raw) -> capped string, or null.
+//
+// Mirrors validateWidget's title field treatment (free-text, capped at 120
+// chars, never used to construct a query or executed) but returns null
+// instead of an empty string when raw is not a usable value (undefined,
+// not a string, or empty after trimming) — matching this file's
+// return-null-never-throw discipline (D-03 step 3). dashboardTitle is
+// dashboard-level, not per-widget, so it is validated once here,
+// independent of the per-widget validateWidget() loop (04.1-CONTEXT.md
+// D-05). The caller (generate.js/app.js) decides the fallback display text
+// ("Your Dashboard" per 04.1-UI-SPEC.md's Copywriting Contract) rather than
+// this function inventing one.
+export function validateDashboardTitle(raw) {
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) return null;
+  return trimmed.slice(0, 120);
+}

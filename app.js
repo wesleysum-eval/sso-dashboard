@@ -774,6 +774,19 @@ if (generateBtn) {
           draft.data = body.widgets;
           renderWidgets(body.widgets);
           showSaveBar();
+
+          // D-05/D-UI-15: dashboardTitle (validated server-side) replaces
+          // the prompt-panel heading; falls back to "Your Dashboard" when
+          // absent/invalid. This update only runs inside the success
+          // branch — before the first generation the heading keeps its
+          // original "Generate a dashboard" text untouched.
+          const heading = document.getElementById('prompt-panel-heading');
+          if (heading) {
+            heading.textContent =
+              typeof body.dashboardTitle === 'string' && body.dashboardTitle
+                ? body.dashboardTitle
+                : 'Your Dashboard';
+          }
         } else {
           // D-08: exact generic copy, regardless of underlying cause —
           // keep any prior dashboard visible (D-UI-01).

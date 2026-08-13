@@ -30,7 +30,14 @@
 import { verifySession } from '../lib/session.js';
 import { getTenantAccount } from '../lib/tenant-mapping.js';
 import { signTeoRequest, toTeoRfc3339 } from '../lib/teo-signer.js';
-import { COMPONENT_TYPES, INTERVALS, TIME_RANGES, METRICS_BY_SOURCE, validateWidget } from '../lib/generation-schema.js';
+import {
+  COMPONENT_TYPES,
+  INTERVALS,
+  TIME_RANGES,
+  METRICS_BY_SOURCE,
+  validateWidget,
+  validateDashboardTitle,
+} from '../lib/generation-schema.js';
 import { ACTION_BY_SOURCE } from '../lib/metric-lookup.js';
 
 // EdgeOne's Edge Function runtime does not implement the standard
@@ -64,13 +71,14 @@ function buildSystemPrompt(dataSource, previousSpec) {
 
   const lines = [
     'You generate dashboard widget specifications as JSON only.',
-    'You must return ONLY a JSON array of widget objects — no markdown code fences, no explanation text, nothing before or after the array.',
-    'Each widget object must have exactly these fields: componentType, metric, interval, timeRange, title.',
+    'You must return ONLY a JSON object shaped { "dashboardTitle": string, "widgets": [...] } — no markdown code fences, no explanation text, nothing before or after the object.',
+    'Each widget object in the widgets array must have exactly these fields: componentType, metric, interval, timeRange, title.',
     `componentType must be one of: ${COMPONENT_TYPES.join(', ')}.`,
     `metric must be one of: ${metrics.join(', ')}.`,
     `interval must be one of: ${INTERVALS.join(', ')}.`,
     `timeRange must be one of: ${TIME_RANGES.join(', ')}.`,
     'title is a short, free-text, human-readable label for the widget (not used for anything else).',
+    'dashboardTitle is a short, free-text, human-readable title for the whole dashboard (not used for anything else).',
     'Never use any value outside these exact lists — any other value will be silently rejected.',
     'Return between 1 and 4 widgets that best answer the user prompt.',
   ];
@@ -165,7 +173,7 @@ export async function onRequestPost({ request, env }) {
     try {
       candidates = await callAiGateway(
         env,
-        `${systemPrompt}\nYour previous response was not valid JSON matching the schema. Return ONLY the JSON array, nothing else.`,
+        `${systemPrompt}\nYour previous response was not valid JSON matching the schema. Return ONLY the JSON object with dashboardTitle and widgets fields, nothing else.`,
         prompt,
       );
     } catch {
@@ -173,14 +181,24 @@ export async function onRequestPost({ request, env }) {
     }
   }
 
-  if (!Array.isArray(candidates)) {
+  // 04.1-01 (D-05): the LLM's top-level response is now a { dashboardTitle,
+  // widgets } object, not a bare array. If the parsed JSON isn't an object
+  // or its widgets field isn't an array, treat this identically to the
+  // existing "not an Array" failure branch — same generic failure, no new
+  // error shape.
+  if (!candidates || typeof candidates !== 'object' || !Array.isArray(candidates.widgets)) {
     return generationFailed();
   }
+
+  // dashboardTitle is dashboard-level, not per-widget — validated once,
+  // independent of the per-widget validation loop below. A missing/invalid
+  // dashboardTitle never triggers generationFailed() on its own (D-08).
+  const dashboardTitle = validateDashboardTitle(candidates.dashboardTitle);
 
   // Pitfall 2: partial success, not all-or-nothing — filter out invalid
   // widgets individually; only fail the whole request if NOTHING survives
   // filtering.
-  const validWidgets = candidates
+  const validWidgets = candidates.widgets
     .map((candidate) => validateWidget(candidate, dataSource))
     .filter((widget) => widget !== null);
 
@@ -245,7 +263,16 @@ export async function onRequestPost({ request, env }) {
     return generationFailed();
   }
 
-  return new Response(JSON.stringify({ widgets, prompt }), {
+  // dashboardTitle is included only when it validated successfully — never
+  // send an empty string or a distinct error for a missing/invalid title
+  // (D-08); the client falls back to "Your Dashboard" when the field is
+  // absent.
+  const responseBody = { widgets, prompt };
+  if (dashboardTitle !== null) {
+    responseBody.dashboardTitle = dashboardTitle;
+  }
+
+  return new Response(JSON.stringify(responseBody), {
     headers: { 'Content-Type': 'application/json' },
   });
 }
