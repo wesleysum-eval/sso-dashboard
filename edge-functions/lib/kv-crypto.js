@@ -16,13 +16,15 @@
 // This file is imported both by edge-functions (EdgeOne's edge runtime,
 // which natively provides `crypto.subtle` as a global) and by the local
 // scripts/encrypt-tenant-secret.mjs Node script (Node 19+ also exposes
-// `crypto.subtle` as a global; the fallback below covers older Node via
-// node:crypto's webcrypto export). No top-level await — resolved lazily per
-// call so this loads safely on any bundler/runtime.
-async function getSubtle() {
+// `crypto.subtle` as a global — no fallback needed). A dynamic
+// `import('node:crypto')` fallback was tried here but esbuild statically
+// resolves import() targets at edge-function bundle time regardless of
+// whether the branch executes, which broke the ENTIRE edge-function bundle
+// (every /api/* route 404'd, not just this module's callers) — never add a
+// node:*-only import back into any file reachable from edge-functions/.
+function getSubtle() {
   if (typeof crypto !== 'undefined' && crypto.subtle) return crypto.subtle;
-  const { webcrypto } = await import('node:crypto');
-  return webcrypto.subtle;
+  throw new Error('crypto.subtle is not available in this runtime');
 }
 
 function base64Encode(bytes) {
