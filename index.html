@@ -338,6 +338,30 @@
         letter-spacing: -0.01em;
       }
 
+      /* ---------- Phase 4.1 (D-06/D-UI-16/D-UI-17): dashboard-state badge ---------- */
+      .prompt-panel-heading-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .dashboard-state-badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 13px;
+        font-weight: 500;
+        background: var(--color-bg);
+        border: 1px solid var(--color-border);
+        color: var(--color-text-muted);
+      }
+
+      .dashboard-state-badge.is-saved {
+        border-color: var(--color-primary);
+        color: var(--color-primary);
+      }
+
       .prompt-textarea {
         display: block;
         width: 100%;
@@ -575,7 +599,10 @@
 
       <div id="prompt-section" style="display: none">
         <div class="prompt-panel">
-          <h2 id="prompt-panel-heading">Generate a dashboard</h2>
+          <div class="prompt-panel-heading-row">
+            <h2 id="prompt-panel-heading">Generate a dashboard</h2>
+            <span id="dashboard-state-badge" class="dashboard-state-badge" style="display: none"></span>
+          </div>
           <textarea
             id="prompt-textarea"
             class="prompt-textarea"

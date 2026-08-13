@@ -722,6 +722,19 @@ function renderWidgets(widgets) {
   });
 }
 
+// ---------- Phase 4.1 (D-06/D-UI-16/D-UI-17): dashboard-state badge ----------
+//
+// setDashboardStateBadge() is presentation-only — it never fetches. Call
+// sites decide when to invoke it, driven entirely by responses/state that
+// already exist in memory (never a new network call, per D-UI-16).
+function setDashboardStateBadge(text, isSaved) {
+  const badge = document.getElementById('dashboard-state-badge');
+  if (!badge) return;
+  badge.textContent = text;
+  badge.classList.toggle('is-saved', Boolean(isSaved));
+  badge.style.display = '';
+}
+
 function showErrorBanner(message) {
   const banner = document.getElementById('error-banner');
   if (!banner) return;
@@ -748,6 +761,7 @@ if (generateBtn) {
     generateBtn.disabled = true;
     generateBtn.textContent = 'Generating…';
     hideErrorBanner();
+    setDashboardStateBadge('Generating…', false);
 
     fetch('/api/generate', {
       method: 'POST',
@@ -774,6 +788,7 @@ if (generateBtn) {
           draft.data = body.widgets;
           renderWidgets(body.widgets);
           showSaveBar();
+          setDashboardStateBadge('● Draft — not saved', false);
 
           // D-05/D-UI-15: dashboardTitle (validated server-side) replaces
           // the prompt-panel heading; falls back to "Your Dashboard" when
@@ -856,6 +871,9 @@ function saveDashboard(bar, btn) {
         confirmation.appendChild(link);
 
         bar.appendChild(confirmation);
+        // D-UI-16: driven off the same already-in-memory POST response —
+        // never a new fetch.
+        setDashboardStateBadge('✓ Saved', true);
       } else {
         btn.disabled = false;
         btn.textContent = 'Save Dashboard';
@@ -918,6 +936,9 @@ function renderRetrievalView(dashboardId) {
     .then(({ ok, body }) => {
       if (ok && body && Array.isArray(body.spec)) {
         renderWidgets(body.spec);
+        // D-UI-17: unconditional — this view has no Generating/Draft
+        // transition to preserve.
+        setDashboardStateBadge('✓ Saved · Read-only', true);
       } else {
         // D-06: identical "Dashboard not found." copy regardless of cause
         // (missing id vs. cross-tenant) — full-page state, same pattern as
