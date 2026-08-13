@@ -113,6 +113,9 @@ fetch('/api/status')
       const existingSource = data.authenticated ? getSourceFromUrl() : null;
       if (existingSource) draft.dataSource = existingSource;
       promptSection.style.display = data.authenticated && draft.dataSource ? '' : 'none';
+      if (existingSource) {
+        loadDefaultDataSourceDashboard(existingSource);
+      }
     }
 
     // Self-service tenant connection: only fetched/rendered for
@@ -129,50 +132,129 @@ fetch('/api/status')
     document.getElementById('result').textContent = `Error: ${err.message}`;
   });
 
-// Phase 3 (DATA-01): clicking the CDN Traffic Stats card fetches the
-// session-gated, tenant-scoped route and renders either the returned data
-// or a generic "No data available" state (D-05) — the client never
-// inspects *why* `available` is false.
+const DEFAULT_DATA_SOURCE_DASHBOARDS = {
+  'cdn-traffic': {
+    apiPath: '/api/data/cdn-traffic',
+    title: 'CDN Traffic Snapshot',
+    caption: 'Last 24 hours · Real EdgeOne traffic data',
+    widgets: [
+      {
+        componentType: 'stat-card',
+        title: 'Total Outbound Traffic',
+        metric: 'l7Flow_outFlux',
+        interval: 'hour',
+      },
+      {
+        componentType: 'line-chart',
+        title: 'Hourly Outbound Traffic',
+        metric: 'l7Flow_outFlux',
+        interval: 'hour',
+      },
+      {
+        componentType: 'table',
+        title: 'Hourly Traffic Detail',
+        metric: 'l7Flow_outFlux',
+        interval: 'hour',
+      },
+    ],
+  },
+  'security-events': {
+    apiPath: '/api/data/security-events',
+    title: 'Security Events Snapshot',
+    caption: 'Last 24 hours · DDoS attack bandwidth',
+    widgets: [
+      {
+        componentType: 'stat-card',
+        title: 'Total Attack Bandwidth',
+        metric: 'ddos_attackBandwidth',
+        interval: 'hour',
+      },
+      {
+        componentType: 'line-chart',
+        title: 'Attack Bandwidth Trend',
+        metric: 'ddos_attackBandwidth',
+        interval: 'hour',
+      },
+      {
+        componentType: 'table',
+        title: 'Security Event Detail',
+        metric: 'ddos_attackBandwidth',
+        interval: 'hour',
+      },
+    ],
+  },
+};
+
+function revealPromptForSource(source) {
+  draft.dataSource = source;
+  setSourceInUrl(source);
+  const promptSection = document.getElementById('prompt-section');
+  if (promptSection) promptSection.style.display = '';
+}
+
+function renderDefaultDataSourceDashboard(resultEl, config, data) {
+  resultEl.textContent = '';
+
+  const header = document.createElement('div');
+  header.className = 'default-dashboard-header';
+
+  const title = document.createElement('div');
+  title.className = 'default-dashboard-title';
+  title.textContent = config.title;
+  header.appendChild(title);
+
+  const caption = document.createElement('div');
+  caption.className = 'default-dashboard-caption';
+  caption.textContent = `${config.caption} · as of ${new Date().toLocaleString()}`;
+  header.appendChild(caption);
+
+  resultEl.appendChild(header);
+
+  const stack = document.createElement('div');
+  stack.className = 'default-dashboard-stack';
+
+  const hydratedWidgets = config.widgets.map((widget) => ({ ...widget, data }));
+  const heroIndex = hydratedWidgets.findIndex((widget) => widget.componentType === 'stat-card');
+  hydratedWidgets.forEach((widget, index) => {
+    stack.appendChild(renderWidget(widget, index === heroIndex));
+  });
+
+  resultEl.appendChild(stack);
+}
+
+function loadDefaultDataSourceDashboard(source) {
+  const config = DEFAULT_DATA_SOURCE_DASHBOARDS[source];
+  if (!config) return;
+
+  const resultEl = document.getElementById('data-source-result');
+  if (!resultEl) return;
+
+  resultEl.classList.add('is-visible');
+  resultEl.textContent = 'Loading…';
+
+  revealPromptForSource(source);
+
+  fetch(config.apiPath)
+    .then((r) => r.json())
+    .then((data) => {
+      if (data.available) {
+        renderDefaultDataSourceDashboard(resultEl, config, data.data);
+      } else {
+        resultEl.textContent = 'No data available';
+      }
+    })
+    .catch(() => {
+      resultEl.textContent = 'No data available';
+    });
+}
+
+// Phase 3 (DATA-01): clicking the data-source cards fetches the
+// session-gated, tenant-scoped routes and renders a default dashboard
+// snapshot. The client still never inspects *why* `available` is false.
 const cdnTrafficCard = document.getElementById('card-cdn-traffic');
 if (cdnTrafficCard) {
   cdnTrafficCard.addEventListener('click', () => {
-    const resultEl = document.getElementById('data-source-result');
-    resultEl.classList.add('is-visible');
-    resultEl.textContent = 'Loading…';
-
-    // Phase 4 (D-04 passthrough): selecting a data source reveals the
-    // prompt panel and is reflected into the URL so a refresh mid-flow
-    // doesn't lose the selection.
-    draft.dataSource = 'cdn-traffic';
-    setSourceInUrl('cdn-traffic');
-    const promptSection = document.getElementById('prompt-section');
-    if (promptSection) promptSection.style.display = '';
-
-    fetch('/api/data/cdn-traffic')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.available) {
-          resultEl.textContent = '';
-          // Reuse the same widget-card renderer as the prompt-driven
-          // generate path (renderChartWidget -> extractSeries) rather than
-          // dumping raw JSON — same real teo response shape, same fix.
-          const card = renderChartWidget(
-            {
-              title: 'Outbound Traffic (last 24h)',
-              metric: 'l7Flow_outFlux',
-              data: data.data,
-              interval: 'hour',
-            },
-            'line',
-          );
-          resultEl.appendChild(card);
-        } else {
-          resultEl.textContent = 'No data available';
-        }
-      })
-      .catch(() => {
-        resultEl.textContent = 'No data available';
-      });
+    loadDefaultDataSourceDashboard('cdn-traffic');
   });
 }
 
@@ -187,39 +269,7 @@ if (cdnTrafficCard) {
 const securityEventsCard = document.getElementById('card-security-events');
 if (securityEventsCard) {
   securityEventsCard.addEventListener('click', () => {
-    const resultEl = document.getElementById('data-source-result');
-    resultEl.classList.add('is-visible');
-    resultEl.textContent = 'Loading…';
-
-    draft.dataSource = 'security-events';
-    setSourceInUrl('security-events');
-    const promptSection = document.getElementById('prompt-section');
-    if (promptSection) promptSection.style.display = '';
-
-    fetch('/api/data/security-events')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.available) {
-          resultEl.textContent = '';
-          // Same DescribeDDoSAttackData action/metric this route's server
-          // side signs against (edge-functions/api/data/security-events.js).
-          const card = renderChartWidget(
-            {
-              title: 'Attack Bandwidth (last 24h)',
-              metric: 'ddos_attackBandwidth',
-              data: data.data,
-              interval: 'hour',
-            },
-            'line',
-          );
-          resultEl.appendChild(card);
-        } else {
-          resultEl.textContent = 'No data available';
-        }
-      })
-      .catch(() => {
-        resultEl.textContent = 'No data available';
-      });
+    loadDefaultDataSourceDashboard('security-events');
   });
 }
 
