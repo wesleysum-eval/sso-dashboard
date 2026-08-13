@@ -420,6 +420,63 @@ function formatTimestamp(rawValue, interval) {
   return `${month} ${day}, ${time}`;
 }
 
+// ---------- Phase 4.1 (D-03/D-04): computed-only insight helpers ----------
+//
+// All three functions below operate purely on an already-extracted series
+// (04.1-UI-SPEC.md's Insight Computation Contract) — no new fetch, no new
+// LLM call. Never LLM-invented: these compute deterministic statistics over
+// data the server already fetched and validated (Phase 4).
+
+// computeStats(series) -> { min, max, avg } over the series' value fields.
+function computeStats(series) {
+  const values = series.map((point) => point.value);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const avg = values.reduce((sum, v) => sum + v, 0) / values.length;
+  return { min, max, avg };
+}
+
+// computeTrend(series) -> 'up' | 'down' | 'flat'. Splits the series into a
+// first half and second half by index (floor of half the length as the
+// split point); compares the average of each half. >5% higher -> 'up',
+// >5% lower -> 'down', otherwise 'flat'.
+function computeTrend(series) {
+  const mid = Math.floor(series.length / 2);
+  const firstHalf = series.slice(0, mid);
+  const secondHalf = series.slice(mid);
+  if (firstHalf.length === 0 || secondHalf.length === 0) return 'flat';
+
+  const avg = (arr) => arr.reduce((sum, p) => sum + p.value, 0) / arr.length;
+  const firstAvg = avg(firstHalf);
+  const secondAvg = avg(secondHalf);
+
+  if (firstAvg === 0) return secondAvg === 0 ? 'flat' : 'up';
+
+  const pctChange = (secondAvg - firstAvg) / firstAvg;
+  if (pctChange > 0.05) return 'up';
+  if (pctChange < -0.05) return 'down';
+  return 'flat';
+}
+
+// Returns { point, multiplier } if the series' single highest point
+// exceeds 2x the arithmetic mean of all points, else null. Only ever
+// flags the single highest point per call — never a list of multiple
+// points.
+function detectSpike(series) {
+  const mean = series.reduce((sum, p) => sum + p.value, 0) / series.length;
+  if (mean === 0) return null;
+
+  let maxPoint = series[0];
+  for (const point of series) {
+    if (point.value > maxPoint.value) maxPoint = point;
+  }
+
+  if (maxPoint.value > mean * 2) {
+    return { point: maxPoint, multiplier: Math.round((maxPoint.value / mean) * 10) / 10 };
+  }
+  return null;
+}
+
 // extractSeries(data) normalizes the real teo `DescribeTimingL7AnalysisData`/
 // `DescribeDDoSAttackData` response shape into a flat [{ label, value }]
 // series: `data[0].TypeValue[].Detail[].{ Timestamp, Value }` for
@@ -508,7 +565,8 @@ function renderChartWidget(widget, chartType) {
 
   if (typeof Chart === 'undefined') return renderPlaceholder(widget);
 
-  const datasetLabel = widget.title || METRIC_LABELS[widget.metric]?.label || widget.metric;
+  const meta = METRIC_LABELS[widget.metric];
+  const datasetLabel = widget.title || meta?.label || widget.metric;
 
   new Chart(canvas.getContext('2d'), {
     type: chartType,
@@ -528,10 +586,46 @@ function renderChartWidget(widget, chartType) {
     },
   });
 
+  // D-UI-13: spike-callout — only if the series' single highest point
+  // exceeds 2x the mean. Silent absence (no callout) otherwise.
+  const spike = detectSpike(series);
+  if (spike) {
+    const callout = document.createElement('div');
+    callout.className = 'spike-callout';
+
+    const formattedTimestamp = formatTimestamp(spike.point.rawTimestamp, widget.interval);
+    const formattedValue = formatMetricValue(spike.point.value, meta?.format, meta?.unit ?? '');
+
+    callout.append(
+      '\u26a0 Spike detected: ' + formattedTimestamp + ' \u2014 ' + formattedValue + ' (',
+    );
+    const multiplierSpan = document.createElement('span');
+    multiplierSpan.className = 'spike-value';
+    multiplierSpan.textContent = `${spike.multiplier}\u00d7 average`;
+    callout.appendChild(multiplierSpan);
+    callout.append(')');
+
+    card.appendChild(callout);
+  }
+
+  // D-UI-14: summary-insight sentence — always for line-chart/bar-chart
+  // widgets, computed from the same already-extracted series.
+  const stats = computeStats(series);
+  const trend = computeTrend(series);
+  const label = meta?.label ?? widget.metric;
+  const summary = document.createElement('div');
+  summary.className = 'insight-summary';
+  summary.textContent =
+    `${label} ranged from ${formatMetricValue(stats.min, meta?.format, meta?.unit ?? '')} to ` +
+    `${formatMetricValue(stats.max, meta?.format, meta?.unit ?? '')}, averaging ` +
+    `${formatMetricValue(stats.avg, meta?.format, meta?.unit ?? '')}, and is trending ${trend} ` +
+    `over this period.`;
+  card.appendChild(summary);
+
   return card;
 }
 
-function renderStatCardWidget(widget) {
+function renderStatCardWidget(widget, isHero) {
   const series = extractSeries(widget.data, widget.interval);
   if (!series) return renderPlaceholder(widget);
 
@@ -539,6 +633,7 @@ function renderStatCardWidget(widget) {
   const meta = METRIC_LABELS[widget.metric];
 
   const card = widgetCardShell(widget);
+  if (isHero) card.classList.add('is-hero');
   const value = document.createElement('div');
   value.className = 'stat-card-value';
   value.textContent = formatMetricValue(total, meta?.format, meta?.unit ?? '');
@@ -584,10 +679,10 @@ function renderTableWidget(widget) {
   return card;
 }
 
-function renderWidget(widget) {
+function renderWidget(widget, isHero) {
   if (widget.componentType === 'line-chart') return renderChartWidget(widget, 'line');
   if (widget.componentType === 'bar-chart') return renderChartWidget(widget, 'bar');
-  if (widget.componentType === 'stat-card') return renderStatCardWidget(widget);
+  if (widget.componentType === 'stat-card') return renderStatCardWidget(widget, isHero);
   if (widget.componentType === 'table') return renderTableWidget(widget);
   return renderPlaceholder(widget);
 }
@@ -615,8 +710,15 @@ function renderEmptyState() {
 function renderWidgets(widgets) {
   const stack = document.getElementById('widget-stack');
   stack.textContent = '';
-  widgets.forEach((widget) => {
-    stack.appendChild(renderWidget(widget));
+
+  // D-UI-12: hero-metric selection — the FIRST stat-card widget in the
+  // LLM's returned order (no reordering). At most one hero per dashboard.
+  // If no stat-card widget exists, no hero treatment is applied at all —
+  // never promotes a chart/table widget instead.
+  const heroIndex = widgets.findIndex((w) => w.componentType === 'stat-card');
+
+  widgets.forEach((widget, index) => {
+    stack.appendChild(renderWidget(widget, index === heroIndex));
   });
 }
 
