@@ -68,7 +68,7 @@ export async function onRequestGet({ request, env }) {
     secretId: account.secretId,
     secretKey: account.secretKey,
     action: 'DescribeTimingL7AnalysisData',
-    version: '2022-01-06',
+    version: '2022-09-01',
     payload: {
       StartTime: startTime.toISOString(),
       EndTime: endTime.toISOString(),

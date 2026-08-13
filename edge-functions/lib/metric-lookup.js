@@ -8,6 +8,6 @@
 // These two version strings must never be shared/interchanged between data
 // sources (03-RESEARCH.md Pitfall 1, carried forward to this phase).
 export const ACTION_BY_SOURCE = {
-  'cdn-traffic': { action: 'DescribeTimingL7AnalysisData', version: '2022-01-06' },
+  'cdn-traffic': { action: 'DescribeTimingL7AnalysisData', version: '2022-09-01' },
   'security-events': { action: 'DescribeDDoSAttackData', version: '2022-09-01' },
 };
