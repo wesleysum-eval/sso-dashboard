@@ -380,11 +380,11 @@ function formatMetricValue(value, formatRule, unit) {
   }
 
   if (formatRule === 'ms-rounded') {
-    return `${Math.round(n)} ms`;
+    return `${Math.round(n)} ${unit}`;
   }
 
   if (formatRule === 'rate-1dp') {
-    return `${n.toFixed(1)} req/s`;
+    return `${n.toFixed(1)} ${unit}`;
   }
 
   // Unknown format rule: fall back to a plain unit-suffixed number rather
