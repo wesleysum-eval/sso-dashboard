@@ -914,12 +914,96 @@ function hideErrorBanner() {
   banner.textContent = '';
 }
 
+// Phase 5 (HTML-agent pipeline): opt-in via ?html=1. When enabled, the
+// Generate button calls /api/generate-html instead of /api/generate and
+// renders the returned HTML inside a sandboxed iframe. The existing JSON
+// pipeline remains the default so users without the flag see zero
+// change in behaviour (feature-flag rollout, D-08 lineage).
+function isHtmlAgentEnabled() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('html') === '1';
+}
+
+function renderHtmlDashboard(htmlString) {
+  const stack = document.getElementById('widget-stack');
+  if (!stack) return;
+  stack.textContent = '';
+
+  const iframe = document.createElement('iframe');
+  // sandbox="allow-scripts" (deliberately without allow-same-origin)
+  // isolates the LLM-authored content from the parent page — no cookie
+  // access, no localStorage, no parent-DOM access, no same-origin fetch.
+  iframe.setAttribute('sandbox', 'allow-scripts');
+  // CSP restricts scripts to the Chart.js CDN only. Defense-in-depth
+  // alongside html-sanitizer.js.
+  iframe.setAttribute('csp',
+    "default-src 'none'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; " +
+    "style-src 'unsafe-inline'; img-src data:; font-src data:;");
+  iframe.style.cssText = 'width: 100%; height: 900px; border: 0; border-radius: 12px; background: #f8fafc;';
+  iframe.srcdoc = htmlString;
+  stack.appendChild(iframe);
+
+  const footer = document.createElement('div');
+  footer.className = 'dashboard-timestamp-footer';
+  footer.style.cssText =
+    'margin-top: 16px; font-size: 12px; color: var(--color-text-subtle); text-align: right;';
+  footer.textContent = `Snapshot as of ${new Date().toLocaleString()}`;
+  stack.appendChild(footer);
+}
+
 const generateBtn = document.getElementById('generate-btn');
 if (generateBtn) {
   generateBtn.addEventListener('click', () => {
     const textarea = document.getElementById('prompt-textarea');
     const promptText = textarea ? textarea.value.trim() : '';
     if (!promptText || !draft.dataSource) return;
+
+    // Phase 5: branch to the HTML-agent pipeline when ?html=1 is set.
+    if (isHtmlAgentEnabled()) {
+      generateBtn.disabled = true;
+      generateBtn.textContent = 'Generating (this can take 8–15s)…';
+      hideErrorBanner();
+      setDashboardStateBadge('Generating…', false);
+
+      // For the initial cut, default to the first metric of the source
+      // and the standard 24h/hour window. A future revision will let
+      // the LLM (or the user via prompt) pick metric/interval/range
+      // through a first-pass classifier.
+      const defaultMetricBySource = {
+        'cdn-traffic': 'l7Flow_outFlux',
+        'security-events': 'ddos_attackBandwidth',
+      };
+      const metric = defaultMetricBySource[draft.dataSource];
+
+      fetch('/api/generate-html', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dataSource: draft.dataSource,
+          prompt: promptText,
+          metric,
+          interval: 'hour',
+          timeRange: 'last24h',
+        }),
+      })
+        .then((r) => r.json().then((body) => ({ ok: r.ok, body })))
+        .then(({ ok, body }) => {
+          if (ok && body && typeof body.html === 'string' && body.html.length > 0) {
+            renderHtmlDashboard(body.html);
+            setDashboardStateBadge('● HTML draft — not saved', false);
+          } else {
+            showErrorBanner("Couldn't generate a dashboard from that prompt — try rephrasing.");
+          }
+        })
+        .catch(() => {
+          showErrorBanner("Couldn't generate a dashboard from that prompt — try rephrasing.");
+        })
+        .finally(() => {
+          generateBtn.disabled = false;
+          generateBtn.textContent = 'Generate Dashboard';
+        });
+      return;
+    }
 
     const isRePrompt = Boolean(draft.spec);
 
