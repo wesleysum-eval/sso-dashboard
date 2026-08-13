@@ -29,12 +29,18 @@ import { signTeoRequest } from '../../lib/teo-signer.js';
 
 // TEMPORARY diagnostic, same convention as auth/callback.js's
 // AUTH_DEBUG_CALLBACK — when env.DATA_DEBUG === 'true', includes a coarse
-// failure category (never a secret, never raw upstream error text) so the
-// live "no data available" checkpoint can be diagnosed without EdgeOne log
-// access. Remove once Phase 3/4 live checkpoints are confirmed passing.
-function noDataAvailable(env, reason) {
+// failure category and (for teo API errors only) the raw Error.Message, so
+// the live "no data available" checkpoint can be diagnosed without EdgeOne
+// log access. The Message can only be produced by hitting your OWN
+// account's teo credentials while YOU are logged in — there is no
+// cross-tenant exposure while this flag is on. Remove once Phase 3/4 live
+// checkpoints are confirmed passing.
+function noDataAvailable(env, reason, message) {
   const body = { available: false };
-  if (env.DATA_DEBUG === 'true' && reason) body.debugReason = reason;
+  if (env.DATA_DEBUG === 'true') {
+    if (reason) body.debugReason = reason;
+    if (message) body.debugMessage = message;
+  }
   return new Response(JSON.stringify(body), {
     headers: { 'Content-Type': 'application/json' },
   });
@@ -88,11 +94,15 @@ export async function onRequestGet({ request, env }) {
   }
 
   if (teoResponse.Response && teoResponse.Response.Error) {
-    // Never forward Response.Error.Message — it can contain the ZoneId
-    // (03-RESEARCH.md Pitfall 5). Error.Code alone (e.g.
-    // "AuthFailure.SecretIdNotFound", "InvalidParameter") is safe — it's a
-    // fixed Tencent enum, not free text, and never embeds the ZoneId/secret.
-    return noDataAvailable(env, teoResponse.Response.Error.Code || 'teo_error');
+    // Never forward Response.Error.Message in production (it can contain
+    // the ZoneId, 03-RESEARCH.md Pitfall 5) — but under DATA_DEBUG=true
+    // this is your own account's own error, safe for this temporary
+    // diagnostic pass.
+    return noDataAvailable(
+      env,
+      teoResponse.Response.Error.Code || 'teo_error',
+      teoResponse.Response.Error.Message,
+    );
   }
 
   return new Response(
