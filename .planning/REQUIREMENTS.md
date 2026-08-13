@@ -26,11 +26,11 @@
 - [x] **GEN-01**: User can enter a natural-language prompt describing the dashboard/view they want
 - [x] **GEN-02**: Agent generates a dashboard (charts/tables) from the selected data source based on the prompt, using read-only EdgeOne API calls only
 - [x] **GEN-03**: Dashboard generation is constrained to a fixed query/component vocabulary (not arbitrary/open-ended code execution against live APIs)
-- [ ] **GEN-04**: User can re-prompt to refine/regenerate the dashboard without starting over from data-source selection
+- [x] **GEN-04**: User can re-prompt to refine/regenerate the dashboard without starting over from data-source selection
 
 ### Save
 
-- [ ] **SAVE-01**: User can save a generated dashboard for later retrieval under their account
+- [x] **SAVE-01**: User can save a generated dashboard for later retrieval under their account
 
 ## v2 Requirements
 
@@ -81,8 +81,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GEN-01 | Phase 4 | Complete |
 | GEN-02 | Phase 4 | Complete |
 | GEN-03 | Phase 4 | Complete |
-| GEN-04 | Phase 4 | Pending |
-| SAVE-01 | Phase 4 | Pending |
+| GEN-04 | Phase 4 | Complete |
+| SAVE-01 | Phase 4 | Complete |
 
 **Coverage:**
 
@@ -92,4 +92,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-08-10*
-*Last updated: 2026-08-10 after roadmap creation (added DEPLOY-01, mapped all v1 requirements to phases)*
+*Last updated: 2026-08-13 after Phase 4 Plan 02's live checkpoint passed — GEN-04, SAVE-01 marked complete; all Phase 4 requirements (GEN-01/02/03/04, SAVE-01) now complete.*

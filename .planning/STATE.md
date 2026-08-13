@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 04
 current_phase_name: prompt-driven-dashboard-generation-save
 status: executing
-stopped_at: Phase 4 Plan 01 (generation tracer) live-verified by user after fixing an unrelated full /api/* outage (esbuild-breaking node:crypto import in kv-crypto.js). GEN-01/02/03 and DATA-01 now live-confirmed. Phase 3 Plan 02 (Security Events route) still not built. Ready to plan/execute Phase 4 Plan 02 (re-prompt/save/retrieve) or backfill Phase 3 Plan 02.
-last_updated: "2026-08-13T00:15:00.000-07:00"
-last_activity: 2026-08-12
-last_activity_desc: Pushed Phase 4 Plan 01's generation pipeline, then diagnosed and fixed a full production outage discovered during its own live checkpoint — every /api/* route (including previously-working /api/status) was 404ing due to an esbuild bundle-breaking dynamic import('node:crypto') in edge-functions/lib/kv-crypto.js (added earlier the same session, unrelated to Phase 4). Removed the fallback and a speculative catch-all router added earlier as a red herring fix; confirmed the real build error via `edgeone makers dev` locally before fixing. User confirmed the live checkpoint passes ("works now") after the fix deployed. Updated REQUIREMENTS.md (GEN-01/02/03, DATA-01 marked complete) and 04-01-SUMMARY.md to reflect the live pass.
+stopped_at: "Phase 4 (both plans) fully complete and live-verified. Plan 02's Task 3 blocking checkpoint received the human's \"approved\" response after a full live walkthrough of all 6 verification steps, including the GEN-03 prompt-injection negative test and the SAVE-01 cross-tenant negative test. GEN-04, SAVE-01 marked complete in REQUIREMENTS.md. Phase 3 Plan 02 (Security Events route) still not built — biggest remaining gap. Phase 2/3 documentation checkpoints (refresh persistence, spoofed tenant_id, Phase 3 Plan 01 Task 2 re-confirmation) also still outstanding."
+last_updated: "2026-08-13T01:05:58.840Z"
+last_activity: 2026-08-13
+last_activity_desc: "Executed Phase 4 Plan 02 (04-02-PLAN.md): built edge-functions/api/dashboard.js (POST, session-gated KV save) and edge-functions/api/dashboard/[id].js (GET, EdgeOne bracket dynamic route, session-gated KV retrieve with cross-tenant-safe key construction), committed aa241a9; extended app.js/index.html with re-prompt/Regenerate wiring confirmation, a Save Dashboard UI rendering its confirmation from the in-memory POST response, and a read-only ?dashboard=<id> retrieval view, committed 125b809; then halted at Task 3 (checkpoint:human-verify, gate=\"blocking\") until the human performed a full live walkthrough of all 5 ROADMAP Phase 4 success criteria (including the GEN-03 prompt-injection negative test and the SAVE-01 cross-tenant negative test) and responded \"approved\". Updated REQUIREMENTS.md (GEN-04, SAVE-01 marked complete — all Phase 4 requirements now complete) and 04-02-SUMMARY.md to reflect the live pass."
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 3
   total_plans: 8
-  completed_plans: 4
+  completed_plans: 7
 ---
 
 # Project State
@@ -23,22 +23,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-10)
 
 **Core value:** Enterprise customers can self-serve custom reporting on their own EdgeOne data (CDN traffic, security events) without filing a support/sales request — via a prompt-driven agent, gated behind their enterprise SSO, with data strictly isolated to their own account.
-**Current focus:** Phase 03 — tenant-scoped-data-source-selection (Plan 01 code complete, live checkpoint pending human credentials)
+**Current focus:** Phase 04 — prompt-driven-dashboard-generation-save (COMPLETE); next open gap is Phase 03 Plan 02 (Security Events route, unbuilt)
 
 ## Current Position
 
-Phase: 04 (prompt-driven-dashboard-generation-save) — EXECUTING
-Plan: 1 of 2 — COMPLETE and live-verified (GEN-01, GEN-02, GEN-03, DATA-01 all confirmed live). Plan 2 (re-prompt/save/retrieve) not started.
-Status: Phase 2 SSO login verified live by user (refresh/negative-test not yet re-confirmed); Phase 3 Plan 01 code-complete (checkpoint outstanding), Plan 02 (Security Events) NOT YET BUILT; Phase 4 Plan 01 COMPLETE and live-verified; Plan 02 (re-prompt/save) not started
-Last activity: 2026-08-12/13 — Pushed Phase 4 Plan 01, hit and fixed a full production outage (unrelated node:crypto bundle-break), user confirmed live checkpoint passes
+Phase: 04 (prompt-driven-dashboard-generation-save) — COMPLETE
+Plan: 2 of 2 — COMPLETE and live-verified (all 5 requirements GEN-01/02/03/04, SAVE-01 confirmed live via Task 3's "approved" checkpoint)
+Status: Phase 2 SSO login verified live by user (refresh/negative-test not yet re-confirmed); Phase 3 Plan 01 code-complete (checkpoint outstanding), Plan 02 (Security Events) NOT YET BUILT; Phase 4 COMPLETE — both plans live-verified
+Last activity: 2026-08-13 — Pushed Phase 4 Plan 02 (save/retrieve + re-prompt UI), human completed full live walkthrough and responded "approved" to Task 3's blocking checkpoint
 
-Progress: [████████░░] ~75% (Phase 4 Plan 01 fully live-verified; Phase 3 Plan 02 and Phase 4 Plan 02 remain the biggest open gaps; 2 human checkpoints still outstanding in Phases 2-3)
+Progress: [█████████░] 88% (Phase 4 fully complete and live-verified; Phase 3 Plan 02 remains the biggest open gap; 2 human checkpoints still outstanding in Phases 2-3)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 4 (Phase 4 Plan 01 now fully live-verified; several more code-complete pending human checkpoints)
+- Total plans completed: 5 (Phase 4 now fully complete and live-verified — both plans)
 - Average duration: ~7 min/plan (code portions only)
 - Total execution time: -
 
@@ -49,12 +49,12 @@ Progress: [████████░░] ~75% (Phase 4 Plan 01 fully live-veri
 | 1 | 2/2 | complete | - |
 | 2 | 2/2 (code); 1 checkpoint pending | - | 9 min, ~5 min |
 | 3 | 1/2 (code); 1 checkpoint pending, 1 plan unbuilt | - | - |
-| 4 | 1/2 complete + live-verified; 1 not started | ~25 min (code) + outage fix | - |
+| 4 | 2/2 complete + live-verified | ~45 min (code) + outage fix | - |
 
 **Recent Trend:**
 
-- Last 3 plans: 03-01 (CDN tracer), 04-CONTEXT (gathered), 04-01 (generation tracer, live-verified)
-- Trend: code lands quickly; human-credential checkpoints and (this session) a self-inflicted build-breaking bug were the actual bottlenecks, not implementation speed.
+- Last 3 plans: 04-CONTEXT (gathered), 04-01 (generation tracer, live-verified), 04-02 (re-prompt/save/retrieve, live-verified)
+- Trend: code lands quickly; human-credential checkpoints and (Plan 04-01) a self-inflicted build-breaking bug were the actual bottlenecks, not implementation speed. Plan 04-02's checkpoint passed cleanly on the first live walkthrough.
 
 **Per-Plan Metrics:**
 
@@ -64,6 +64,7 @@ Progress: [████████░░] ~75% (Phase 4 Plan 01 fully live-veri
 | Phase 02 P02 | ~5min (Task 1) | 1/2 tasks | 2 files |
 | Phase 03 P01 | ~10min (Task 1) | 1/2 tasks | 5 files |
 | Phase 04 P01 | ~25min (code) + outage fix | 3/3 tasks complete | 5 files + 2 outage-fix files |
+| Phase 04 P02 | ~20min (code) + live verification | 3/3 tasks complete | 4 files |
 
 ## Accumulated Context
 
@@ -87,6 +88,9 @@ Recent decisions affecting current work:
 - [Phase 4 Plan 01]: Implemented Phase 3's D-04 `?source=` URL passthrough client-side in app.js — this had been specified in 03-CONTEXT.md but never actually wired by Plan 03-01/03-02.
 - [Phase 4 Plan 01, incident fix]: Removed a `dynamic import('node:crypto')` fallback from `edge-functions/lib/kv-crypto.js` — esbuild statically resolves `import()` targets at edge-function bundle time regardless of whether the branch executes, so this single unnecessary fallback broke the ENTIRE edge-function bundle (every `/api/*` route 404'd, not just this module's callers). `crypto.subtle` is always available as a global on both the EdgeOne edge runtime and modern Node; no fallback needed. **Standing rule going forward: never add a `node:*`-only import anywhere reachable from `edge-functions/`, even inside a conditional/fallback branch.**
 - [Phase 4 Plan 01, incident fix]: Removed a speculative `edge-functions/api/[[default]].js` catch-all router that had been added earlier the same session as an unconfirmed attempted fix for a suspected routing regression. It was not the actual cause of anything and added unnecessary route-dispatch complexity — all nested routes it forwarded (`data/cdn-traffic`, `tenant/connect`) were already confirmed working live in Phase 2/3 before this session's changes.
+- [Phase 4 Plan 02]: GEN-04 (re-prompt/Regenerate) required no new server-side or client-side wiring — Plan 04-01's Task 2 had already threaded `previousSpec` into the single Generate/Regenerate button; Plan 04-02's only touch was a clarifying doc comment plus the live re-verification in Task 3.
+- [Phase 4 Plan 02]: `draft.data` added as a field mirroring `draft.spec` exactly (each widget already carries its own fetched `teo` data merged in from Plan 04-01) rather than introducing a separate raw-data extraction path server-side.
+- [Phase 4 Plan 02]: Save-confirmation renders entirely from the in-memory `POST /api/dashboard` response — never an immediate `GET` re-fetch of the just-written key — to sidestep KV's documented 60-second eventual-consistency window (04-RESEARCH.md Pitfall 5).
 
 ### Pending Todos
 
@@ -99,12 +103,15 @@ None yet.
 - SSO protocol choice (OIDC vs SAML) — resolved in Phase 2 (OIDC only, SAML excluded), no longer a blocker.
 
 **Outstanding human checkpoints (all blocking, all require credentials/actions only the human can provide):**
+
 1. **Phase 2 Plan 02 Task 2** — live browser OIDC round-trip (login → IdP → return logged-in; refresh persists session; spoofed `tenant_id` query param has zero effect). User confirmed live login now works. Still needs explicit re-confirmation of: refresh persists session with no re-auth, and `/?tenant_id=some-other-tenant` has zero effect. See `.planning/phases/02-sso-authentication-tenant-mapping/02-02-PLAN.md` Task 2 `<how-to-verify>`.
 2. **Phase 3 Plan 01 Task 2** — requires: (a) a Tencent Cloud API SecretId/SecretKey pair with `teo` read permissions, (b) a real EdgeOne Zone ID, (c) one seeded KV record (`tenant:<tenant_id>` → `{zoneId, secretId, secretKey}`) matching the Phase 2 test IdP's actual tenant. See `.planning/phases/03-tenant-scoped-data-source-selection/03-01-PLAN.md` Task 2 `<how-to-verify>` and `user_setup` frontmatter block. **NOTE: this is likely already satisfied as a side effect of Phase 4 Plan 01's live checkpoint passing (CDN Traffic Stats returned real data end-to-end) — worth explicitly re-confirming and closing this checkpoint rather than re-doing it.**
 3. **Phase 3 Plan 02 — NOT YET BUILT.** `edge-functions/api/data/security-events.js` does not exist. Must be executed before DATA-02/DATA-03's full-picker + negative-test checkpoint can even be attempted. See `.planning/phases/03-tenant-scoped-data-source-selection/03-02-PLAN.md`.
 
 **RESOLVED this session:**
+
 - ~~Phase 4 Plan 01 Task 1 + Task 2~~ — `MAKERS_MODELS_KEY` set manually in console (CLI `env set`/`env pull` silently no-op'd for this project — noted as a quirk, use console directly for any future env var changes here). Code pushed (`3bcc7b4`, `294e99f`, `cdfc994`, `6b1ec8f`). Live checkpoint passed — user confirmed "works now" after logging in, selecting CDN Traffic Stats, prompting, and generating a real dashboard. GEN-01/GEN-02/GEN-03/DATA-01 marked complete in REQUIREMENTS.md.
+- ~~Phase 4 Plan 02 Task 3~~ — full live verification of all 5 ROADMAP Phase 4 success criteria (`checkpoint:human-verify`, `gate="blocking"`). Code pushed (`aa241a9`, `125b809`). Human performed the complete live walkthrough — GEN-01 (prompt input), GEN-02 (real generated data), GEN-03 negative test (prompt-injection produced zero out-of-vocabulary widgets), GEN-04 (re-prompt without returning to data-source selection), SAVE-01 (save + retrieve + cross-tenant negative test — second tenant's session correctly got "Dashboard not found") — and typed **"approved"**. GEN-04/SAVE-01 marked complete in REQUIREMENTS.md. **Phase 4 is now fully complete.**
 
 **[NEW] Full `/api/*` production outage found and fixed during Phase 4 Plan 01's checkpoint.** After pushing Phase 4's generation pipeline, ALL API routes 404'd — not just the new `/api/generate`, but previously-working `/api/status` and `/api/kv-check` too. Root cause: `edge-functions/lib/kv-crypto.js` (added earlier the same session, unrelated to Phase 4) had a `dynamic import('node:crypto')` fallback for older Node; `esbuild` statically resolves `import()` targets at edge-function bundle time regardless of whether the branch executes, so this broke the entire bundle build on EdgeOne. Confirmed via `edgeone makers dev` locally (reproduced "Could not resolve node:crypto" build failure). Fixed by removing the fallback (`crypto.subtle` is always a global on both the edge runtime and modern Node — no fallback was ever needed). Also removed an unrelated speculative `edge-functions/api/[[default]].js` catch-all router added earlier the same session as an unconfirmed fix attempt for a different suspected issue — turned out unnecessary. **New standing rule: never add a `node:*`-only import anywhere reachable from `edge-functions/`, even inside a conditional/fallback branch — esbuild's static resolution breaks the whole bundle regardless of runtime branching.** Documented as an explicit code comment in `kv-crypto.js` for future reference.
 
@@ -129,13 +136,14 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-13T00:15:00.000Z
-Stopped at: Phase 4 Plan 01 fully complete and live-verified (GEN-01/02/03, DATA-01). A full production outage was discovered and fixed during its checkpoint (esbuild/node:crypto bundle break, unrelated root cause). Phase 3 Plan 02 (Security Events) still not built.
-Resume file: .planning/phases/04-prompt-driven-dashboard-generation-save/04-01-SUMMARY.md, .planning/phases/04-prompt-driven-dashboard-generation-save/04-02-PLAN.md, .planning/phases/03-tenant-scoped-data-source-selection/03-02-PLAN.md
+Last session: 2026-08-13T01:05:58.840Z
+Stopped at: Phase 4 fully complete — both plans live-verified. Plan 02's Task 3 blocking checkpoint received "approved" after a full live walkthrough of all 6 verification steps (GEN-01 through GEN-04, SAVE-01, including the prompt-injection and cross-tenant negative tests). Phase 3 Plan 02 (Security Events) still not built — now the single biggest remaining gap for v1.
+Resume file: .planning/phases/04-prompt-driven-dashboard-generation-save/04-02-SUMMARY.md, .planning/phases/03-tenant-scoped-data-source-selection/03-02-PLAN.md
 
 **Next steps for the user:**
-1. Explicitly close out Phase 3 Plan 01's outstanding checkpoint — real Tencent Cloud API call already proven live via Phase 4's checkpoint, so this is likely just a documentation/sign-off step now, not new work.
-2. Explicitly re-confirm Phase 2's remaining checkpoint items: refresh persists session with no re-auth, and a spoofed `?tenant_id=` query param has zero effect.
-3. Decide priority: build Phase 3 Plan 02 (Security Events route — currently unbuilt, needed for DATA-02/DATA-03's full picker + negative test) vs. moving straight to Phase 4 Plan 02 (re-prompt/save/retrieve dashboards). Both are valid next moves; Phase 3 Plan 02 closes a gap in the current phase, Phase 4 Plan 02 continues forward momentum on the already-proven generation pipeline.
-4. Run `/gsd-execute-phase 3` (targeting Plan 02) or `/gsd-execute-phase 4` (targeting Plan 02) depending on the above.
+
+1. Decide priority: build Phase 3 Plan 02 (Security Events route — currently unbuilt, needed for DATA-02/DATA-03's full picker + cross-tenant negative test) — this is now the only unbuilt plan standing between the current state and full v1 requirements coverage.
+2. Explicitly close out Phase 3 Plan 01's outstanding checkpoint — real Tencent Cloud API call already proven live via Phase 4's checkpoints, so this is likely just a documentation/sign-off step now, not new work.
+3. Explicitly re-confirm Phase 2's remaining checkpoint items: refresh persists session with no re-auth, and a spoofed `?tenant_id=` query param has zero effect.
+4. Run `/gsd-execute-phase 3` (targeting Plan 02) to close the last open gap.
 5. **Standing reminder for future edge-functions/ work:** never add a `node:*`-only import (even inside a conditional fallback) anywhere reachable from `edge-functions/` — it will silently break the entire bundle build. If unsure a route change might have broken something, `edgeone makers dev` locally reproduces the exact build error before pushing.
