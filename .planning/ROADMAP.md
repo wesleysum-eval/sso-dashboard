@@ -124,12 +124,12 @@ Plans:
 **Requirements**: DISPLAY-01, INSIGHT-01, SAVE-UI-01
 **Depends on:** Phase 4
 **Context:** `.planning/phases/04.1-dashboard-renderer-insights-polish/04.1-CONTEXT.md` (gathered 2026-08-13 — root cause diagnosed, Artifacts-style freeform HTML explicitly explored and rejected, scope narrowed to label/unit fixes + computed insights + save UI polish)
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 
-- [ ] 04.1-01-PLAN.md — METRIC_LABELS/unit/timestamp root-cause fix + computed hero-metric/spike-callout/summary-insight + validated dashboardTitle (DISPLAY-01, INSIGHT-01)
-- [ ] 04.1-02-PLAN.md — Dashboard-state badge (Generating/Draft/Saved/Read-only) + Copy Link affordance, zero new backend routes (SAVE-UI-01)
+- [x] 04.1-01-PLAN.md — METRIC_LABELS/unit/timestamp root-cause fix + computed hero-metric/spike-callout/summary-insight + validated dashboardTitle (DISPLAY-01, INSIGHT-01)
+- [x] 04.1-02-PLAN.md — Dashboard-state badge (Generating/Draft/Saved/Read-only) + Copy Link affordance, zero new backend routes (SAVE-UI-01)
 
 ### Phase 999.1: Predefined dashboard templates (CDN Traffic Overview, Security Threat Overview, Traffic Spike Detection) (BACKLOG)
 

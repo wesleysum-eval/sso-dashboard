@@ -34,8 +34,8 @@
 
 ### Dashboard Rendering & Insights (Phase 4.1, added 2026-08-13)
 
-- [ ] **DISPLAY-01**: Generated/saved dashboard widgets show human-readable metric labels, correct units, and formatted timestamps — never raw `teo` API metric codes or unformatted ISO/locale timestamp strings
-- [ ] **INSIGHT-01**: Generated dashboards show computed (not LLM-generated) hero-metric emphasis, spike-callout, and summary-insight framing derived from already-fetched data, without expanding GEN-03's closed component/query vocabulary
+- [x] **DISPLAY-01**: Generated/saved dashboard widgets show human-readable metric labels, correct units, and formatted timestamps — never raw `teo` API metric codes or unformatted ISO/locale timestamp strings
+- [x] **INSIGHT-01**: Generated dashboards show computed (not LLM-generated) hero-metric emphasis, spike-callout, and summary-insight framing derived from already-fetched data, without expanding GEN-03's closed component/query vocabulary
 - [ ] **SAVE-UI-01**: The Save/retrieval UI shows a Copy Link affordance and a clear visual state label distinguishing generating/draft/saved/read-only, with zero new backend routes
 
 ## v2 Requirements
@@ -89,8 +89,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GEN-03 | Phase 4 | Complete |
 | GEN-04 | Phase 4 | Complete |
 | SAVE-01 | Phase 4 | Complete |
-| DISPLAY-01 | Phase 4.1 | Pending |
-| INSIGHT-01 | Phase 4.1 | Pending |
+| DISPLAY-01 | Phase 4.1 | Complete |
+| INSIGHT-01 | Phase 4.1 | Complete |
 | SAVE-UI-01 | Phase 4.1 | Pending |
 
 **Coverage:**
