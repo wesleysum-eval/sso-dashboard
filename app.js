@@ -176,6 +176,53 @@ if (cdnTrafficCard) {
   });
 }
 
+// WR-03 fix: completes the security-events UI entry point that
+// getSourceFromUrl() already widened to accept (this phase, commit
+// e52f2cc) but never gained a picker card for — the only way to reach
+// this flow was previously hand-editing ?source=security-events into the
+// URL. Mirrors the CDN Traffic Stats card above exactly; safe to enable
+// now that CR-01 fixed extractSeries()'s DescribeDDoSAttackData shape
+// handling, so this data source actually renders instead of always
+// showing "Data unavailable".
+const securityEventsCard = document.getElementById('card-security-events');
+if (securityEventsCard) {
+  securityEventsCard.addEventListener('click', () => {
+    const resultEl = document.getElementById('data-source-result');
+    resultEl.classList.add('is-visible');
+    resultEl.textContent = 'Loading…';
+
+    draft.dataSource = 'security-events';
+    setSourceInUrl('security-events');
+    const promptSection = document.getElementById('prompt-section');
+    if (promptSection) promptSection.style.display = '';
+
+    fetch('/api/data/security-events')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.available) {
+          resultEl.textContent = '';
+          // Same DescribeDDoSAttackData action/metric this route's server
+          // side signs against (edge-functions/api/data/security-events.js).
+          const card = renderChartWidget(
+            {
+              title: 'Attack Bandwidth (last 24h)',
+              metric: 'ddos_attackBandwidth',
+              data: data.data,
+              interval: 'hour',
+            },
+            'line',
+          );
+          resultEl.appendChild(card);
+        } else {
+          resultEl.textContent = 'No data available';
+        }
+      })
+      .catch(() => {
+        resultEl.textContent = 'No data available';
+      });
+  });
+}
+
 // Self-service tenant connection form — lets a logged-in user paste their
 // own Zone ID / SecretId / SecretKey instead of the credentials being
 // pasted manually into the EdgeOne KV console. Backend
