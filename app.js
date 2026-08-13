@@ -9,7 +9,7 @@
 // `?source=` query param (Phase 3's D-04 passthrough state) so a page
 // refresh mid-flow doesn't silently lose which source was picked, without
 // introducing any server-side session growth.
-const draft = { dataSource: null, prompt: '', spec: null, data: null };
+const draft = { dataSource: null, prompt: '', spec: null, data: null, dashboardTitle: null };
 
 function getSourceFromUrl() {
   const params = new URLSearchParams(window.location.search);
@@ -812,12 +812,18 @@ if (generateBtn) {
           // absent/invalid. This update only runs inside the success
           // branch — before the first generation the heading keeps its
           // original "Generate a dashboard" text untouched.
+          //
+          // WR-01 fix: also persist the validated title onto `draft` so
+          // saveDashboard() can include it in the save payload — previously
+          // only the DOM heading was updated, so the title was silently
+          // dropped on save and never appeared in the retrieval view.
+          draft.dashboardTitle =
+            typeof body.dashboardTitle === 'string' && body.dashboardTitle
+              ? body.dashboardTitle
+              : null;
           const heading = document.getElementById('prompt-panel-heading');
           if (heading) {
-            heading.textContent =
-              typeof body.dashboardTitle === 'string' && body.dashboardTitle
-                ? body.dashboardTitle
-                : 'Your Dashboard';
+            heading.textContent = draft.dashboardTitle || 'Your Dashboard';
           }
         } else {
           // D-08: exact generic copy, regardless of underlying cause —
@@ -863,7 +869,12 @@ function saveDashboard(bar, btn) {
   fetch('/api/dashboard', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ spec: draft.spec, data: draft.data, prompt: draft.prompt }),
+    body: JSON.stringify({
+      spec: draft.spec,
+      data: draft.data,
+      prompt: draft.prompt,
+      dashboardTitle: draft.dashboardTitle,
+    }),
   })
     .then((r) => r.json().then((body) => ({ ok: r.ok, body })))
     .then(({ ok, body }) => {
@@ -983,6 +994,16 @@ function renderRetrievalView(dashboardId) {
     .then(({ ok, body }) => {
       if (ok && body && Array.isArray(body.spec)) {
         renderWidgets(body.spec);
+        // WR-01 fix: render the persisted dashboardTitle (if any) into the
+        // same heading element the generate flow uses, mirroring the
+        // fallback text used there ("Your Dashboard") for consistency.
+        const heading = document.getElementById('prompt-panel-heading');
+        if (heading) {
+          heading.textContent =
+            typeof body.dashboardTitle === 'string' && body.dashboardTitle
+              ? body.dashboardTitle
+              : 'Your Dashboard';
+        }
         // D-UI-17: unconditional — this view has no Generating/Draft
         // transition to preserve.
         setDashboardStateBadge('✓ Saved · Read-only', true);

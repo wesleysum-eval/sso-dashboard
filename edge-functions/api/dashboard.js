@@ -13,6 +13,7 @@
 // This is what makes the cross-tenant negative test in dashboard/[id].js
 // structurally true, not just policy.
 import { verifySession } from '../lib/session.js';
+import { validateDashboardTitle } from '../lib/generation-schema.js';
 
 // D-08: this route's single failure shape — never a stack trace, never a
 // raw KV error message, at any branch.
@@ -47,17 +48,33 @@ export async function onRequestPost({ request, env }) {
     return saveFailed();
   }
 
-  const { spec, data, prompt } = body;
+  const { spec, data, prompt, dashboardTitle: rawDashboardTitle } = body;
+
+  // WR-01 fix: re-validate dashboardTitle server-side (never trust the
+  // client-echoed value as-is) using the same validateDashboardTitle()
+  // already used at generation time — matches D-05's existing lineage
+  // instead of introducing a new/separate title-validation path. Omitted
+  // (not stored at all) when invalid/absent, mirroring generate.js's own
+  // "include only when it validated successfully" convention (D-08).
+  const dashboardTitle = validateDashboardTitle(rawDashboardTitle);
 
   // crypto.randomUUID() confirmed available on this edge runtime per
   // 04-RESEARCH.md (Web Crypto API docs list it alongside crypto.subtle).
   const dashboardId = crypto.randomUUID();
 
-  // Stored value shape is exactly D-05's: the validated widget spec, the
-  // fetched data snapshot (generated-once, not live-refreshing), the
-  // original prompt text, and a createdAt timestamp. tenant_id in the KEY
-  // always comes from verifySession() above, never from the request body.
-  const record = JSON.stringify({ spec, data, prompt, createdAt: Date.now() });
+  // Stored value shape is D-05's plus dashboardTitle (WR-01): the
+  // validated widget spec, the fetched data snapshot (generated-once, not
+  // live-refreshing), the original prompt text, the validated title (or
+  // omitted if invalid/absent), and a createdAt timestamp. tenant_id in
+  // the KEY always comes from verifySession() above, never from the
+  // request body.
+  const record = JSON.stringify({
+    spec,
+    data,
+    prompt,
+    ...(dashboardTitle !== null ? { dashboardTitle } : {}),
+    createdAt: Date.now(),
+  });
 
   try {
     await my_kv.put(`dashboard:${payload.tenant_id}:${dashboardId}`, record);
