@@ -870,6 +870,30 @@ function saveDashboard(bar, btn) {
         link.textContent = url.toString();
         confirmation.appendChild(link);
 
+        // Phase 4.1 (D-06/T-04.1-05/T-04.1-06): Copy Link — reuses the same
+        // `url` already constructed above, never rebuilt. Clipboard
+        // failure/unavailability is a silent no-op (no new error banner),
+        // per the no-leak/graceful-degradation convention.
+        const copyBtn = document.createElement('button');
+        copyBtn.type = 'button';
+        copyBtn.className = 'btn-secondary copy-link-btn';
+        copyBtn.textContent = 'Copy Link';
+        copyBtn.addEventListener('click', () => {
+          if (!navigator.clipboard || !navigator.clipboard.writeText) return;
+          navigator.clipboard
+            .writeText(url.toString())
+            .then(() => {
+              copyBtn.textContent = 'Copied!';
+              setTimeout(() => {
+                copyBtn.textContent = 'Copy Link';
+              }, 2000);
+            })
+            .catch(() => {
+              // Silent no-op — link text remains manually selectable.
+            });
+        });
+        confirmation.appendChild(copyBtn);
+
         bar.appendChild(confirmation);
         // D-UI-16: driven off the same already-in-memory POST response —
         // never a new fetch.
