@@ -102,19 +102,50 @@ fetch('/api/status')
 
     const dataSourceSection = document.getElementById('data-source-section');
     if (dataSourceSection) {
-      dataSourceSection.style.display = data.authenticated ? '' : 'none';
+      // Phase 6: agent mode picks its own tools, so the manual source
+      // picker is not part of that flow — hide it rather than leaving a
+      // control that does nothing useful.
+      const showPicker = data.authenticated && !isAgentEnabled();
+      dataSourceSection.style.display = showPicker ? '' : 'none';
     }
 
     // Phase 4 (GEN-01): the prompt panel is gated behind BOTH authenticated
     // AND a selected data source (Phase 3's D-04 `?source=` passthrough) —
     // reuses this same `authenticated` field, no duplicate session check.
+    //
+    // Phase 6 exception: in agent mode (?agent=1) the agent selects its own
+    // tools, so no data source needs to be picked first — the prompt panel
+    // is gated on `authenticated` alone. Both the picker cards and the
+    // ?source= passthrough remain functional and simply go unused.
     const promptSection = document.getElementById('prompt-section');
     if (promptSection) {
       const existingSource = data.authenticated ? getSourceFromUrl() : null;
       if (existingSource) draft.dataSource = existingSource;
-      promptSection.style.display = data.authenticated && draft.dataSource ? '' : 'none';
-      if (existingSource) {
+      const agentMode = isAgentEnabled();
+      promptSection.style.display =
+        data.authenticated && (agentMode || draft.dataSource) ? '' : 'none';
+      if (existingSource && !agentMode) {
         loadDefaultDataSourceDashboard(existingSource);
+      }
+      if (agentMode) {
+        // Agent mode replaces the widget-picking language with report
+        // language, and hides the data-source picker since it is not part
+        // of this flow.
+        //
+        // Note: the Generate button element is looked up locally here
+        // rather than using the module-level `generateBtn` const, which is
+        // declared far below this /api/status callback. `const` is not
+        // hoisted, so referencing it here would throw a
+        // ReferenceError at runtime even though the callback fires later.
+        const heading = document.getElementById('prompt-panel-heading');
+        if (heading) heading.textContent = 'Ask a question about your traffic';
+        const promptTextarea = document.getElementById('prompt-textarea');
+        if (promptTextarea) {
+          promptTextarea.placeholder =
+            'e.g. How did traffic behave over the last 24 hours? Any anomalies I should know about?';
+        }
+        const btn = document.getElementById('generate-btn');
+        if (btn) btn.textContent = 'Generate Report';
       }
     }
 
@@ -951,11 +982,202 @@ function renderHtmlDashboard(htmlString) {
   stack.appendChild(footer);
 }
 
+// ---------- Phase 6: tool-calling agent + async job polling (?agent=1) ----------
+//
+// The agent pipeline picks its own teo tools, gathers data across several
+// calls, then composes a full HTML report. It takes 30-90s, so the flow is
+// async: POST /api/generate-agent returns a jobId, and the client polls
+// GET /api/jobs/:id every 2s, rendering a progress view until the report
+// is ready.
+//
+// Gated behind ?agent=1 so the JSON pipeline stays the default and existing
+// users see no change (same feature-flag discipline as ?html=1).
+function isAgentEnabled() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('agent') === '1';
+}
+
+const AGENT_POLL_INTERVAL_MS = 2000;
+const AGENT_POLL_MAX_ATTEMPTS = 75; // 75 * 2s = 150s ceiling
+
+// Renders the "investigating" progress panel. Deliberately plain DOM —
+// textContent only, never innerHTML, for every server-supplied string.
+function renderAgentProgress(state) {
+  const stack = document.getElementById('widget-stack');
+  if (!stack) return;
+  stack.textContent = '';
+
+  const panel = document.createElement('div');
+  panel.className = 'widget-loading-state';
+  panel.style.cssText = 'text-align: left; padding: 24px;';
+
+  const heading = document.createElement('div');
+  heading.style.cssText =
+    'font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--color-text-subtle); margin-bottom: 10px;';
+  heading.textContent = 'Investigating your data';
+  panel.appendChild(heading);
+
+  const note = document.createElement('div');
+  note.style.cssText = 'font-size: 15px; color: var(--color-text); margin-bottom: 14px;';
+  note.textContent = state.note || 'Working…';
+  panel.appendChild(note);
+
+  if (state.maxSteps > 0) {
+    const barOuter = document.createElement('div');
+    barOuter.style.cssText =
+      'height: 4px; background: var(--color-border); border-radius: 999px; overflow: hidden; margin-bottom: 14px;';
+    const barInner = document.createElement('div');
+    const pct = Math.min(100, Math.round((state.step / state.maxSteps) * 100));
+    barInner.style.cssText =
+      'height: 100%; width: ' + pct + '%; background: var(--color-primary); transition: width 0.4s ease;';
+    barOuter.appendChild(barInner);
+    panel.appendChild(barOuter);
+  }
+
+  if (Array.isArray(state.toolsUsed) && state.toolsUsed.length > 0) {
+    const chipRow = document.createElement('div');
+    chipRow.style.cssText = 'display: flex; flex-wrap: wrap; gap: 6px;';
+    state.toolsUsed.forEach((toolName) => {
+      const chip = document.createElement('span');
+      chip.style.cssText =
+        'font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 10px; ' +
+        'border: 1px solid var(--color-border); border-radius: 999px; color: var(--color-text-muted);';
+      chip.textContent = String(toolName).replace(/^teo_/, '').replace(/_/g, ' ');
+      chipRow.appendChild(chip);
+    });
+    panel.appendChild(chipRow);
+  }
+
+  stack.appendChild(panel);
+}
+
+// Renders the finished agent report into a sandboxed iframe. Same isolation
+// posture as renderHtmlDashboard() — sandbox="allow-scripts" without
+// allow-same-origin — plus a CSP that additionally permits the Google Fonts
+// hosts the editorial-dark brief relies on.
+function renderAgentReport(htmlString) {
+  const stack = document.getElementById('widget-stack');
+  if (!stack) return;
+  stack.textContent = '';
+
+  const iframe = document.createElement('iframe');
+  iframe.setAttribute('sandbox', 'allow-scripts');
+  iframe.setAttribute(
+    'csp',
+    "default-src 'none'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; " +
+      "style-src 'unsafe-inline' https://fonts.googleapis.com; " +
+      'font-src https://fonts.gstatic.com data:; img-src data:;',
+  );
+  iframe.style.cssText =
+    'width: 100%; height: 1400px; border: 0; border-radius: 12px; background: #111211;';
+  iframe.srcdoc = htmlString;
+  stack.appendChild(iframe);
+
+  const footer = document.createElement('div');
+  footer.className = 'dashboard-timestamp-footer';
+  footer.style.cssText =
+    'margin-top: 16px; font-size: 12px; color: var(--color-text-subtle); text-align: right;';
+  footer.textContent = `Report generated ${new Date().toLocaleString()}`;
+  stack.appendChild(footer);
+}
+
+// Polls GET /api/jobs/:id until the job reaches a terminal state.
+function pollAgentJob(jobId, onDone, onFail) {
+  let attempts = 0;
+
+  const tick = () => {
+    attempts += 1;
+    if (attempts > AGENT_POLL_MAX_ATTEMPTS) {
+      onFail();
+      return;
+    }
+
+    fetch('/api/jobs/' + encodeURIComponent(jobId))
+      .then((r) => r.json().then((body) => ({ ok: r.ok, body })))
+      .then(({ ok, body }) => {
+        if (!ok || !body || body.error) {
+          onFail();
+          return;
+        }
+        if (body.status === 'done' && typeof body.html === 'string') {
+          onDone(body.html);
+          return;
+        }
+        if (body.status === 'failed') {
+          onFail();
+          return;
+        }
+        renderAgentProgress(body);
+        setTimeout(tick, AGENT_POLL_INTERVAL_MS);
+      })
+      .catch(() => {
+        onFail();
+      });
+  };
+
+  tick();
+}
+
+// Kicks off the agent run. Called from the Generate button handler when
+// ?agent=1 is set.
+function startAgentRun(promptText, btn) {
+  btn.disabled = true;
+  btn.textContent = 'Investigating…';
+  hideErrorBanner();
+  setDashboardStateBadge('Investigating…', false);
+  renderAgentProgress({ note: 'Starting analysis', step: 0, maxSteps: 6, toolsUsed: [] });
+
+  const restoreButton = () => {
+    btn.disabled = false;
+    btn.textContent = 'Generate Report';
+  };
+
+  fetch('/api/generate-agent', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt: promptText }),
+  })
+    .then((r) => r.json().then((body) => ({ ok: r.ok, body })))
+    .then(({ ok, body }) => {
+      if (!ok || !body || !body.jobId) {
+        showErrorBanner("Couldn't start the analysis — try rephrasing your question.");
+        restoreButton();
+        return;
+      }
+      pollAgentJob(
+        body.jobId,
+        (html) => {
+          renderAgentReport(html);
+          setDashboardStateBadge('✓ Report ready', true);
+          restoreButton();
+        },
+        () => {
+          showErrorBanner("Couldn't complete the analysis — try rephrasing your question.");
+          setDashboardStateBadge('● Failed', false);
+          restoreButton();
+        },
+      );
+    })
+    .catch(() => {
+      showErrorBanner("Couldn't start the analysis — try rephrasing your question.");
+      restoreButton();
+    });
+}
+
 const generateBtn = document.getElementById('generate-btn');
 if (generateBtn) {
   generateBtn.addEventListener('click', () => {
     const textarea = document.getElementById('prompt-textarea');
     const promptText = textarea ? textarea.value.trim() : '';
+
+    // Phase 6: the agent picks its own tools, so it does NOT require a
+    // pre-selected data source — the dataSource guard is skipped here.
+    if (isAgentEnabled()) {
+      if (!promptText) return;
+      startAgentRun(promptText, generateBtn);
+      return;
+    }
+
     if (!promptText || !draft.dataSource) return;
 
     // Phase 5: branch to the HTML-agent pipeline when ?html=1 is set.

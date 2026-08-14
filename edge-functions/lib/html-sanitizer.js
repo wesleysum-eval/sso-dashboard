@@ -30,14 +30,35 @@ const FORBIDDEN_TAGS = [
   'embed',
   'applet',
   'base',
-  'link', // no external stylesheets — everything must be inline
-  'meta', // no meta refresh
+  // NOTE: 'link' is deliberately NOT in this list. It is handled separately
+  // by findDisallowedLink() below, which permits <link> only when every
+  // occurrence points at a Google Fonts host. The editorial-dark design
+  // brief requires those font links, so a blanket ban would reject every
+  // generated report. Any other <link> (stylesheet or prefetch to an
+  // arbitrary host, import, etc.) still fails closed.
+  // NOTE: 'meta' is deliberately NOT in this list. It is handled separately
+  // by findDisallowedMeta() below, which permits only the benign document
+  // metadata tags (charset, viewport, and a small set of name= values) and
+  // still rejects http-equiv entirely — that is the actually-dangerous form
+  // (meta refresh / CSP override). A blanket ban would reject
+  // <meta charset="UTF-8">, which every valid generated document needs.
   'audio',
   'video',
   'source',
   'track',
   'portal',
 ];
+
+// Hosts permitted in a <link href="...">. Font delivery only — these cannot
+// execute script, and the iframe's style-src/font-src CSP directives scope
+// them independently, so this is a narrow auditable exception, not a hole.
+const ALLOWED_LINK_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com'];
+
+// `name` values permitted on a <meta> tag. Everything else, and any
+// http-equiv at all, is rejected.
+const ALLOWED_META_NAMES = ['viewport', 'description', 'author', 'color-scheme', 'theme-color'];
+
+
 
 // Attribute patterns that indicate JS handlers or dangerous URIs.
 // We reject the entire document if any of these appear.
@@ -103,7 +124,71 @@ function findDisallowedExternalScript(html) {
   return null;
 }
 
+// Cheap check for a <meta> tag that is anything other than benign document
+// metadata. Returns a short description of the offending tag, or null when
+// every <meta> is permitted (or there are none).
+//
+// Rules:
+//   - `http-equiv` in ANY form is rejected. This is the dangerous variant
+//     (refresh-based navigation, Content-Security-Policy override) and there
+//     is no legitimate need for it in a generated report.
+//   - `charset` alone is always permitted.
+//   - `name` is permitted only when its value is in ALLOWED_META_NAMES.
+//   - A <meta> with neither charset, name, nor http-equiv is rejected as
+//     unrecognized rather than waved through.
+function findDisallowedMeta(html) {
+  const re = /<meta\b([^>]*)>/gi;
+  let m;
+  while ((m = re.exec(html)) !== null) {
+    const attrs = m[1] || '';
+
+    if (/\bhttp-equiv\s*=/i.test(attrs)) return 'http-equiv';
+
+    const hasCharset = /\bcharset\s*=/i.test(attrs);
+    const nameMatch = attrs.match(/\bname\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
+
+    if (nameMatch) {
+      const name = (nameMatch[1] || nameMatch[2] || nameMatch[3] || '').toLowerCase();
+      if (!ALLOWED_META_NAMES.includes(name)) return 'name=' + name;
+      continue;
+    }
+
+    if (hasCharset) continue;
+
+    return 'unrecognized meta';
+  }
+  return null;
+}
+
+// Cheap check for <link href="..."> pointing anywhere other than a Google
+// Fonts host. Returns the offending href, or null when every <link> is a
+// permitted font link (or there are none at all).
+//
+// A <link> with no href at all is treated as a violation: it has no
+// legitimate purpose in a generated report, and silently allowing it would
+// widen the exception beyond fonts.
+function findDisallowedLink(html) {
+  const re = /<link\b([^>]*)>/gi;
+  let m;
+  while ((m = re.exec(html)) !== null) {
+    const attrs = m[1] || '';
+    const hrefMatch = attrs.match(/\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
+    if (!hrefMatch) return '(link without href)';
+    const href = hrefMatch[1] || hrefMatch[2] || hrefMatch[3] || '';
+    try {
+      const url = new URL(href);
+      if (url.protocol !== 'https:') return href;
+      if (!ALLOWED_LINK_HOSTS.includes(url.hostname)) return href;
+    } catch {
+      // Relative path, data URI, protocol-relative //host — all rejected.
+      return href;
+    }
+  }
+  return null;
+}
+
 // sanitizeHtml(html) -> { ok: true, html } | { ok: false, reason }
+
 //
 // Fail-closed: any single rule violation rejects the whole document.
 // Never mutates the HTML — this is a validator, not a rewriter.
@@ -139,6 +224,19 @@ export function sanitizeHtml(html) {
   const disallowedSrc = findDisallowedExternalScript(html);
   if (disallowedSrc !== null) {
     return { ok: false, reason: 'disallowed_script_src' };
+  }
+
+  // <link> is permitted for Google Fonts only (see ALLOWED_LINK_HOSTS).
+  const disallowedLink = findDisallowedLink(html);
+  if (disallowedLink !== null) {
+    return { ok: false, reason: 'disallowed_link_href' };
+  }
+
+  // <meta> is permitted only as benign document metadata; http-equiv in any
+  // form is rejected (see findDisallowedMeta).
+  const disallowedMeta = findDisallowedMeta(html);
+  if (disallowedMeta !== null) {
+    return { ok: false, reason: 'disallowed_meta' };
   }
 
   // Forbidden JS API string check — plain substring scan.
