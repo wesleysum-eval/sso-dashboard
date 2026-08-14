@@ -32,6 +32,11 @@ import { getToolSchemas, executeTool } from '../tools/registry.js';
 import { sanitizeHtml } from '../lib/html-sanitizer.js';
 import { verifyFacts } from '../lib/fact-verifier.js';
 import { EDITORIAL_DARK_BRIEF } from '../briefs/editorial-dark.js';
+import {
+  assembleDocument,
+  validateBodyContent,
+  stripFence,
+} from '../lib/document-assembler.js';
 import { createJob, updateJob, JOB_STATUS } from '../lib/job-store.js';
 
 if (typeof AbortSignal.timeout !== 'function') {
@@ -45,22 +50,26 @@ if (typeof AbortSignal.timeout !== 'function') {
 const AI_GATEWAY_URL = 'https://ai-gateway.edgeone.link/v1/chat/completions';
 const AI_GATEWAY_MODEL = '@makers/deepseek-v4-flash';
 
-// Hard bounds. An agent that misbehaves burns budget, not the platform.
+// Hard bounds, recalibrated for the EdgeOne Edge Functions runtime.
 //
-// Calibrated against a real end-to-end run (2026-08-13): the planning turn
-// completed in ~8s and returned 3 tool calls; the compose turn took 211s
-// and emitted 34,927 completion tokens for a 17KB document. The original
-// 60s compose budget aborted every single run. Values below give the
-// compose turn real headroom while keeping a hard ceiling.
+// The platform, not this code, is the binding constraint. EdgeOne Edge
+// Functions are documented for lightweight work (200ms CPU budget); even the
+// heavier Node Functions runtime caps a request at 120s. The first live run's
+// compose turn took 211s and was killed by the platform at ~38s, which is why
+// raising COMPOSE_TIMEOUT_MS from 60s to 270s changed nothing — the knob was
+// not connected to the thing that was failing.
 //
-// MAX_TOOL_CALLS is 4 rather than 6 because the observed planner reliably
-// asks for 3 in its first turn, and each extra tool inflates the compose
-// prompt (and therefore compose latency) more than it improves the report.
-const MAX_STEPS = 3; // LLM planning turns (each turn = one gateway call)
-const MAX_TOOL_CALLS = 4; // total tool executions across all turns
-const WALL_CLOCK_MS = 330_000; // overall deadline for the loop
-const PLAN_TIMEOUT_MS = 45_000; // per-turn timeout while planning
-const COMPOSE_TIMEOUT_MS = 270_000; // the compose turn is the expensive one
+// Option A removes the cause instead of raising the limit: the stylesheet is
+// injected server-side (document-assembler.js) so the model writes only body
+// content, and COMPOSE_MAX_TOKENS puts a hard ceiling on how long it can run.
+// Target compose is 30-45s, comfortably inside the platform budget.
+const MAX_STEPS = 2; // LLM planning turns
+const MAX_TOOL_CALLS = 3; // total tool executions; each one inflates the compose prompt
+const WALL_CLOCK_MS = 100_000; // must stay well under the platform request cap
+const PLAN_TIMEOUT_MS = 25_000;
+const COMPOSE_TIMEOUT_MS = 55_000;
+const COMPOSE_MAX_TOKENS = 7000; // physically bounds compose duration
+
 
 
 function jsonResponse(body, status) {
@@ -96,14 +105,17 @@ function buildPlannerPrompt() {
   ].join('\n');
 }
 
-// The compose-phase system prompt. Injects the design brief plus every
-// fact the tools collected. This is the only turn that produces HTML.
+// The compose-phase system prompt. Injects the (now CSS-free) design brief
+// plus every fact the tools collected. This is the only turn that produces
+// markup, and it produces BODY CONTENT ONLY — document-assembler.js supplies
+// the doctype, head, stylesheet, and Chart.js defaults.
 function buildComposerPrompt(collected) {
   return [
     EDITORIAL_DARK_BRIEF,
     '',
     '================ COLLECTED DATA ================',
     'Every number below is pre-approved. Use these verbatim. Do NOT compute new values.',
+    'Use the `formatted` strings for anything a reader sees, and the `raw` values for chart data arrays.',
     '',
     JSON.stringify(
       collected.map((entry) => ({
@@ -116,11 +128,11 @@ function buildComposerPrompt(collected) {
     ),
     '',
     '================ YOUR TASK ================',
-    'Compose the complete HTML report now. Follow the design brief exactly. Return ONLY the HTML document starting with <!DOCTYPE html>.',
+    'Write the body content now. Start with <div class="ribbon">. Exactly 3 sections. No <!DOCTYPE>, no <html>, no <head>, no <body>, no <style>, no <link>, no <meta>, no <script src>. No CSS.',
   ].join('\n');
 }
 
-async function callGateway(env, messages, tools, timeoutMs) {
+async function callGateway(env, messages, tools, timeoutMs, maxTokens) {
   const requestBody = {
     model: AI_GATEWAY_MODEL,
     messages,
@@ -128,6 +140,12 @@ async function callGateway(env, messages, tools, timeoutMs) {
   if (tools) {
     requestBody.tools = tools;
     requestBody.tool_choice = 'auto';
+  }
+  // A hard token ceiling is the only reliable way to bound how long a
+  // generation runs. Without it the compose turn ran to 34,927 tokens and
+  // outlived every available request timeout.
+  if (maxTokens) {
+    requestBody.max_tokens = maxTokens;
   }
 
   const res = await fetch(AI_GATEWAY_URL, {
@@ -269,21 +287,35 @@ async function runAgentLoop(userPrompt, tenantId, jobId, env) {
     toolsUsed,
   });
 
-  // Compose turn. No tools offered — the agent must return HTML.
+  // Compose turn. No tools offered — the agent must return body content.
   const composeMessages = [
     { role: 'system', content: buildComposerPrompt(collected) },
     { role: 'user', content: userPrompt },
   ];
 
-  const composed = await callGateway(env, composeMessages, null, COMPOSE_TIMEOUT_MS);
-  let html = typeof composed.content === 'string' ? composed.content : '';
-  html = html
-    .trim()
-    .replace(/^```(?:html)?\s*/i, '')
-    .replace(/```\s*$/, '');
+  const composed = await callGateway(
+    env,
+    composeMessages,
+    null,
+    COMPOSE_TIMEOUT_MS,
+    COMPOSE_MAX_TOKENS,
+  );
 
+  // The model returns body content only. Validate that shape BEFORE assembly
+  // so a model that ignored the instruction and emitted a whole document is
+  // rejected while the cause is still obvious, rather than producing a
+  // nested-document mess that only fails later in sanitizeHtml().
+  const bodyCheck = validateBodyContent(stripFence(composed.content));
+  if (!bodyCheck.ok) throw new Error('body_invalid_' + bodyCheck.reason);
+
+  // Server-authored head + injected stylesheet + Chart.js defaults.
+  const html = assembleDocument(bodyCheck.content, { title: 'Traffic Report' });
+
+  // The assembled document still goes through the full sanitizer: the model's
+  // inline <script> blocks (chart initialisation) have not been checked
+  // against the forbidden-API list yet, and defence in depth is cheap.
   const sanitized = sanitizeHtml(html);
-  if (!sanitized.ok) throw new Error('sanitize_failed');
+  if (!sanitized.ok) throw new Error('sanitize_failed_' + sanitized.reason);
 
   const factsList = collectFactsList(collected);
   const verified = verifyFacts(sanitized.html, factsList);
