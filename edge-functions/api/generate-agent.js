@@ -46,11 +46,22 @@ const AI_GATEWAY_URL = 'https://ai-gateway.edgeone.link/v1/chat/completions';
 const AI_GATEWAY_MODEL = '@makers/deepseek-v4-flash';
 
 // Hard bounds. An agent that misbehaves burns budget, not the platform.
-const MAX_STEPS = 6; // LLM turns (each turn = one gateway call)
-const MAX_TOOL_CALLS = 6; // total tool executions across all turns
-const WALL_CLOCK_MS = 110_000; // overall deadline for the loop
-const PLAN_TIMEOUT_MS = 30_000; // per-turn timeout while planning
-const COMPOSE_TIMEOUT_MS = 60_000; // timeout for the final HTML compose turn
+//
+// Calibrated against a real end-to-end run (2026-08-13): the planning turn
+// completed in ~8s and returned 3 tool calls; the compose turn took 211s
+// and emitted 34,927 completion tokens for a 17KB document. The original
+// 60s compose budget aborted every single run. Values below give the
+// compose turn real headroom while keeping a hard ceiling.
+//
+// MAX_TOOL_CALLS is 4 rather than 6 because the observed planner reliably
+// asks for 3 in its first turn, and each extra tool inflates the compose
+// prompt (and therefore compose latency) more than it improves the report.
+const MAX_STEPS = 3; // LLM planning turns (each turn = one gateway call)
+const MAX_TOOL_CALLS = 4; // total tool executions across all turns
+const WALL_CLOCK_MS = 330_000; // overall deadline for the loop
+const PLAN_TIMEOUT_MS = 45_000; // per-turn timeout while planning
+const COMPOSE_TIMEOUT_MS = 270_000; // the compose turn is the expensive one
+
 
 function jsonResponse(body, status) {
   return new Response(JSON.stringify(body), {

@@ -159,16 +159,53 @@ export function computeFacts(teoData, metric, interval, timeRange) {
       numberAllowlist.add(String(+n.toFixed(2)));
     }
   };
+
+  // Live-run finding (2026-08-13): the first end-to-end agent run failed
+  // verification on ["708.8", "36.4", "29.3", ...] — every one the MANTISSA
+  // of a correctly formatted value ("708.8 MB" from a raw 743,242,342 bytes).
+  // The allowlist held only raw values, so the verifier could not recognise
+  // the very strings formatValue() produces.
+  //
+  // addFormatted() parses the leading number back out of a formatted string
+  // and allowlists it. This is not a relaxation: the string was produced by
+  // this module from an approved raw value, so its mantissa is by definition
+  // an approved display form.
+  const addFormatted = (formatted) => {
+    if (typeof formatted !== 'string') return;
+    const m = formatted.match(/-?\d+(?:\.\d+)?/);
+    if (!m) return;
+    numberAllowlist.add(m[0]);
+    const asNum = Number(m[0]);
+    if (Number.isFinite(asNum)) {
+      numberAllowlist.add(String(Math.round(asNum)));
+      numberAllowlist.add(String(+asNum.toFixed(1)));
+      numberAllowlist.add(String(+asNum.toFixed(2)));
+    }
+  };
+
   addNumber(total);
   addNumber(min);
   addNumber(max);
   addNumber(avg);
   addNumber(median);
   values.forEach(addNumber);
+
+  // Allowlist the formatted display form of every aggregate AND every
+  // individual point, since the LLM renders `formatted` strings in tables
+  // and tooltips, not the raw byte counts.
+  addFormatted(formatValue(total, meta.format, meta.unit));
+  addFormatted(formatValue(min, meta.format, meta.unit));
+  addFormatted(formatValue(max, meta.format, meta.unit));
+  addFormatted(formatValue(avg, meta.format, meta.unit));
+  addFormatted(formatValue(median, meta.format, meta.unit));
+  values.forEach((v) => addFormatted(formatValue(v, meta.format, meta.unit)));
+
   if (anomaly) {
     addNumber(anomaly.multiplier);
     addNumber(anomaly.median);
     addNumber(anomaly.mad);
+    addFormatted(formatValue(anomaly.max, meta.format, meta.unit));
+    addFormatted(formatValue(anomaly.median, meta.format, meta.unit));
   }
   // Also allow small integers that are structural (index/count/time)
   // without being data — the LLM might legitimately write "3 widgets"

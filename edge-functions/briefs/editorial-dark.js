@@ -267,6 +267,7 @@ Rules:
 ## 7. HARD CONSTRAINTS — OBEY EXACTLY
 
 - Return ONLY the HTML document, starting with <!DOCTYPE html>. No markdown fences, no commentary.
+- LENGTH BUDGET: aim for 3 to 5 sections and roughly 250-400 lines of HTML total. Do NOT pad with extra sections, repeated panels, or long prose. A tight, well-designed 4-section report is better than a sprawling 10-section one, and a shorter document is generated far faster. Write the CSS compactly (multiple declarations per line is fine).
 - NO <form>, <input>, <button>, <iframe>, <object>, <embed>, <audio>, <video>.
 - NO on* event handler attributes. NO javascript: URIs.
 - NO eval, Function(, setTimeout(, setInterval(, XMLHttpRequest, WebSocket, fetch(, postMessage, localStorage, sessionStorage, document.cookie, parent., top., opener.

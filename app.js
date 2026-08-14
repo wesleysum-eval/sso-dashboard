@@ -998,7 +998,10 @@ function isAgentEnabled() {
 }
 
 const AGENT_POLL_INTERVAL_MS = 2000;
-const AGENT_POLL_MAX_ATTEMPTS = 75; // 75 * 2s = 150s ceiling
+// The compose turn alone was measured at ~210s in a real run, and the
+// server's own ceiling is 330s. Poll long enough to outlast the server
+// rather than giving up while it is still working: 200 * 2s = 400s.
+const AGENT_POLL_MAX_ATTEMPTS = 200;
 
 // Renders the "investigating" progress panel. Deliberately plain DOM —
 // textContent only, never innerHTML, for every server-supplied string.
